@@ -18,6 +18,7 @@ import {
   Sparkles,
   Trophy,
   Download,
+  RefreshCw,
   Search,
   CheckCircle2,
   XCircle,
@@ -32,6 +33,7 @@ import {
   unpublishInvitation,
   uploadImageFile,
   fetchAdminRsvps,
+  downloadAdminRsvpsCsv,
   updateAdminRsvp,
   deleteAdminRsvp,
   logoutAdmin,
@@ -49,6 +51,8 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   const [stats, setStats] = useState<any>(null);
   const [rsvps, setRsvps] = useState<RSVPResponse[]>([]);
   const [rsvpMetrics, setRsvpMetrics] = useState<any>(null);
+  const [rsvpSource, setRsvpSource] = useState<'local' | 'google-sheet' | null>(null);
+  const [refreshingRsvps, setRefreshingRsvps] = useState(false);
 
   const [activeTab, setActiveTab] = useState<
     'overview' | 'content' | 'media' | 'canva' | 'faqs' | 'venue' | 'rsvps'
@@ -78,6 +82,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
       const rsvpData = await fetchAdminRsvps();
       setRsvps(rsvpData.rsvps);
       setRsvpMetrics(rsvpData.metrics);
+      setRsvpSource(rsvpData.source);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to load admin data.');
     }
@@ -86,6 +91,29 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   useEffect(() => {
     loadData();
   }, []);
+
+  const handleRefreshRsvps = async () => {
+    setRefreshingRsvps(true);
+    setErrorMsg(null);
+    try {
+      const data = await fetchAdminRsvps();
+      setRsvps(data.rsvps);
+      setRsvpMetrics(data.metrics);
+      setRsvpSource(data.source);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to refresh RSVP responses.');
+    } finally {
+      setRefreshingRsvps(false);
+    }
+  };
+
+  const handleDownloadRsvps = async () => {
+    try {
+      await downloadAdminRsvpsCsv();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to download RSVP responses.');
+    }
+  };
 
   const handleSaveDraft = async () => {
     if (!draft) return;
@@ -267,6 +295,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
 
   // RSVP management actions
   const handleDeleteRsvp = async (id: string) => {
+    if (rsvpSource === 'google-sheet') return;
     if (!confirm('Are you sure you want to delete this RSVP response?')) return;
     try {
       await deleteAdminRsvp(id);
@@ -278,6 +307,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   };
 
   const handleToggleRsvpAttendance = async (rsvp: RSVPResponse) => {
+    if (rsvpSource === 'google-sheet') return;
     try {
       const updated = await updateAdminRsvp(rsvp.id, {
         attending: !rsvp.attending,
@@ -1759,23 +1789,48 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-black font-display uppercase tracking-tight text-white">
-                    Guest RSVPs & Responses
+                  <h2 className="text-xl sm:text-2xl font-black font-display tracking-tight text-white">
+                    Guest RSVPs
                   </h2>
                   <p className="text-xs text-slate-400 mt-1">
-                    Manage guest list, update responses, and download CSV export.
+                    See who is coming and review their RSVP details.
                   </p>
                 </div>
 
-                <a
-                  href="/api/admin/rsvps/export.csv"
-                  download
-                  className="px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 transition-colors flex items-center gap-2 self-start sm:self-auto cursor-pointer"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download CSV</span>
-                </a>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={handleRefreshRsvps}
+                    disabled={refreshingRsvps}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-slate-200 border border-slate-700 transition-colors flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${refreshingRsvps ? 'animate-spin' : ''}`} />
+                    <span>{refreshingRsvps ? 'Refreshing…' : 'Refresh'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadRsvps}
+                    className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 transition-colors flex items-center gap-2"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download CSV</span>
+                  </button>
+                </div>
               </div>
+
+              {rsvpSource === 'google-sheet' && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 px-4 py-3 rounded-xl bg-slate-900/70 border border-slate-800">
+                  <div>
+                    <div className="text-sm font-semibold text-white">Connected to your RSVP sheet</div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      New replies appear here when you refresh. Responses are stored in Google Sheets.
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-semibold text-slate-300 px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 self-start sm:self-auto">
+                    {rsvps.length} {rsvps.length === 1 ? 'response' : 'responses'}
+                  </span>
+                </div>
+              )}
 
               {/* RSVP Settings Bar */}
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
@@ -1907,16 +1962,26 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                             </div>
                           )}
                         </div>
-                        <button
-                          onClick={() => handleToggleRsvpAttendance(rsvp)}
-                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                        {rsvpSource === 'google-sheet' ? (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold ${
                             rsvp.attending
                               ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                               : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                          }`}
-                        >
-                          {rsvp.attending ? 'Attending' : 'Declined'}
-                        </button>
+                          }`}>
+                            {rsvp.attending ? 'Attending' : 'Declined'}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleToggleRsvpAttendance(rsvp)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                              rsvp.attending
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                            }`}
+                          >
+                            {rsvp.attending ? 'Attending' : 'Declined'}
+                          </button>
+                        )}
                       </div>
 
                       <div className="text-xs text-slate-300 flex items-center justify-between pt-1 border-t border-slate-900">
@@ -1933,15 +1998,17 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                         </div>
                       )}
 
-                      <div className="text-right pt-1">
-                        <button
-                          onClick={() => handleDeleteRsvp(rsvp.id)}
-                          className="text-xs text-slate-500 hover:text-rose-400 transition-colors inline-flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
-                      </div>
+                      {rsvpSource !== 'google-sheet' && (
+                        <div className="text-right pt-1">
+                          <button
+                            onClick={() => handleDeleteRsvp(rsvp.id)}
+                            className="text-xs text-slate-500 hover:text-rose-400 transition-colors inline-flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -1958,13 +2025,15 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                         <th className="py-3 px-4">Attendees</th>
                         <th className="py-3 px-4">Contact</th>
                         <th className="py-3 px-4">Message / Notes</th>
-                        <th className="py-3 px-4 text-right">Actions</th>
+                        {rsvpSource !== 'google-sheet' && (
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800/80">
                       {filteredRsvps.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="py-8 text-center text-slate-500">
+                          <td colSpan={rsvpSource === 'google-sheet' ? 5 : 6} className="py-8 text-center text-slate-500">
                             No RSVP responses found.
                           </td>
                         </tr>
@@ -1980,27 +2049,37 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                               )}
                             </td>
                             <td className="py-3.5 px-4">
-                              <button
-                                onClick={() => handleToggleRsvpAttendance(rsvp)}
-                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer ${
+                              {rsvpSource === 'google-sheet' ? (
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
                                   rsvp.attending
                                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
                                     : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                                }`}
-                                title="Click to toggle attendance"
-                              >
-                                {rsvp.attending ? (
-                                  <>
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    <span>Attending</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <XCircle className="w-3 h-3" />
-                                    <span>Declined</span>
-                                  </>
-                                )}
-                              </button>
+                                }`}>
+                                  {rsvp.attending ? 'Attending' : 'Declined'}
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => handleToggleRsvpAttendance(rsvp)}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer ${
+                                    rsvp.attending
+                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                                  }`}
+                                  title="Click to toggle attendance"
+                                >
+                                  {rsvp.attending ? (
+                                    <>
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      <span>Attending</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <XCircle className="w-3 h-3" />
+                                      <span>Declined</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
                             </td>
                             <td className="py-3.5 px-4 font-bold text-amber-400 tabular-nums">
                               {rsvp.attending ? rsvp.attendeeCount : 0}
@@ -2017,15 +2096,17 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                                 </div>
                               )}
                             </td>
-                            <td className="py-3.5 px-4 text-right">
-                              <button
-                                onClick={() => handleDeleteRsvp(rsvp.id)}
-                                className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
-                                title="Delete response"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </td>
+                            {rsvpSource !== 'google-sheet' && (
+                              <td className="py-3.5 px-4 text-right">
+                                <button
+                                  onClick={() => handleDeleteRsvp(rsvp.id)}
+                                  className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                                  title="Delete response"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            )}
                           </tr>
                         ))
                       )}

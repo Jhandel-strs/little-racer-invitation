@@ -3,10 +3,13 @@ import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
 import { db, verifyPassword, UPLOADS_DIR } from './server/db.js';
+import type { RSVPResponse } from './src/types/invitation';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const isProd = process.env.NODE_ENV === 'production';
+const rsvpSheetUrl = process.env.VITE_RSVP_SCRIPT_URL?.trim();
+const rsvpSheetReadKey = process.env.RSVP_SHEET_READ_KEY?.trim();
 
 // Body parsing with 10mb limit for potential JSON data
 app.use(express.json({ limit: '10mb' }));
@@ -450,25 +453,64 @@ app.put('/api/rsvp/:slug/:id', checkRateLimit, (req: Request, res: Response) => 
   res.json({ success: true, rsvp: updated });
 });
 
-// Admin RSVP management endpoints
-app.get('/api/admin/rsvps', requireAdmin, (_req: Request, res: Response) => {
-  const rsvps = db.getAllRSVPs();
+async function getAdminRsvps() {
+  if (!rsvpSheetUrl) {
+    return { rsvps: db.getAllRSVPs(), source: 'local' as const };
+  }
+  if (!rsvpSheetReadKey) {
+    throw new Error('Set RSVP_SHEET_READ_KEY on the web service and RSVP_READ_KEY in Apps Script to show sheet responses.');
+  }
+
+  const response = await fetch(rsvpSheetUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: 'list', key: rsvpSheetReadKey }),
+    signal: AbortSignal.timeout(20000),
+  });
+  const body = await response.text();
+  let result: { success?: boolean; error?: string; rsvps?: RSVPResponse[] };
+  try {
+    result = JSON.parse(body);
+  } catch {
+    throw new Error('The RSVP sheet did not return JSON. Check that the latest Apps Script version is deployed.');
+  }
+  if (!response.ok || !result.success || !Array.isArray(result.rsvps)) {
+    throw new Error(result.error || `Could not load RSVP sheet (HTTP ${response.status}).`);
+  }
+  return { rsvps: result.rsvps, source: 'google-sheet' as const };
+}
+
+function getRsvpMetrics(rsvps: RSVPResponse[]) {
   const attending = rsvps.filter((r) => r.attending);
   const declined = rsvps.filter((r) => !r.attending);
   const totalAttendees = attending.reduce((acc, r) => acc + (r.attendeeCount || 1), 0);
+  return {
+    total: rsvps.length,
+    totalResponses: rsvps.length,
+    attendingCount: attending.length,
+    declinedCount: declined.length,
+    totalAttendees,
+  };
+}
 
-  res.json({
-    rsvps,
-    metrics: {
-      total: rsvps.length,
-      attendingCount: attending.length,
-      declinedCount: declined.length,
-      totalAttendees,
-    },
-  });
+// Admin RSVP management endpoints
+app.get('/api/admin/rsvps', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const { rsvps, source } = await getAdminRsvps();
+    res.json({ rsvps, source, metrics: getRsvpMetrics(rsvps) });
+  } catch (error) {
+    console.error('Failed to load admin RSVP responses:', error);
+    res.status(502).json({
+      error: error instanceof Error ? error.message : 'Unable to load RSVP responses.',
+    });
+  }
 });
 
 app.patch('/api/admin/rsvps/:id', requireAdmin, (req: Request, res: Response) => {
+  if (rsvpSheetUrl) {
+    res.status(405).json({ error: 'Google Sheets RSVP responses are read-only in the admin dashboard.' });
+    return;
+  }
   const { id } = req.params;
   const updated = db.updateRSVP(id, req.body);
   if (!updated) {
@@ -479,6 +521,10 @@ app.patch('/api/admin/rsvps/:id', requireAdmin, (req: Request, res: Response) =>
 });
 
 app.delete('/api/admin/rsvps/:id', requireAdmin, (req: Request, res: Response) => {
+  if (rsvpSheetUrl) {
+    res.status(405).json({ error: 'Google Sheets RSVP responses are read-only in the admin dashboard.' });
+    return;
+  }
   const { id } = req.params;
   const success = db.deleteRSVP(id);
   if (!success) {
@@ -488,8 +534,14 @@ app.delete('/api/admin/rsvps/:id', requireAdmin, (req: Request, res: Response) =
   res.json({ success: true, message: 'RSVP removed successfully' });
 });
 
-app.get('/api/admin/rsvps/export.csv', requireAdmin, (_req: Request, res: Response) => {
-  const rsvps = db.getAllRSVPs();
+app.get('/api/admin/rsvps/export.csv', requireAdmin, async (_req: Request, res: Response) => {
+  let rsvps: RSVPResponse[];
+  try {
+    ({ rsvps } = await getAdminRsvps());
+  } catch (error) {
+    res.status(502).json({ error: error instanceof Error ? error.message : 'Unable to export RSVP responses.' });
+    return;
+  }
   const headers = ['ID', 'Guest Name', 'Status', 'Attendee Count', 'Guest Names', 'Email', 'Phone', 'Dietary Notes', 'Message', 'Submitted At'];
   
   const escapeCsv = (val: any) => {

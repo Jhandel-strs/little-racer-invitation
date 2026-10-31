@@ -34,6 +34,11 @@ function doPost(event) {
 
     const contents = event && event.postData ? event.postData.contents : '{}';
     const response = JSON.parse(contents || '{}');
+
+    if (response.action === 'list') {
+      return jsonResponse(listResponses(response.key));
+    }
+
     const guestName = safeSheetText(response.guestName, 120);
 
     if (!guestName) {
@@ -73,6 +78,47 @@ function doPost(event) {
       lock.releaseLock();
     }
   }
+}
+
+function listResponses(key) {
+  const properties = PropertiesService.getScriptProperties();
+  const expectedKey = properties.getProperty('RSVP_READ_KEY');
+  if (!expectedKey || !key || key !== expectedKey) {
+    return { success: false, error: 'RSVP sheet read access is not configured.' };
+  }
+
+  const spreadsheetId = properties.getProperty('RSVP_SPREADSHEET_ID');
+  if (!spreadsheetId) {
+    return { success: false, error: 'Run initialize from the Apps Script editor before deploying.' };
+  }
+
+  const sheet = getOrCreateResponseSheet(SpreadsheetApp.openById(spreadsheetId));
+  const lastRow = sheet.getLastRow();
+  const values = lastRow < 2 ? [] : sheet.getRange(2, 1, lastRow - 1, RSVP_HEADERS.length).getValues();
+  const rsvps = values.map((row, index) => {
+    const submitted = row[0] instanceof Date ? row[0] : new Date(row[0]);
+    const submittedAt = Number.isNaN(submitted.getTime()) ? '' : submitted.toISOString();
+    const attending = String(row[3]).toLowerCase() === 'yes';
+    const attendeeCount = attending ? Math.max(1, Number(row[4]) || 1) : 0;
+
+    return {
+      id: `sheet-${index + 2}`,
+      invitationId: String(row[1] || ''),
+      guestName: String(row[2] || ''),
+      attending,
+      attendeeCount,
+      guestNames: String(row[5] || '').split(',').map((name) => name.trim()).filter(Boolean),
+      email: String(row[6] || ''),
+      phone: String(row[7] || ''),
+      dietaryNotes: String(row[8] || ''),
+      message: String(row[9] || ''),
+      submittedAt,
+      updatedAt: submittedAt,
+      editToken: '',
+    };
+  }).reverse();
+
+  return { success: true, rsvps };
 }
 
 function safeGuestNames(value) {

@@ -255,12 +255,36 @@ export async function uploadImageFile(file: File): Promise<{ success: boolean; u
 }
 
 // Admin RSVP APIs
-export async function fetchAdminRsvps(): Promise<{ rsvps: RSVPResponse[]; metrics: any }> {
+export async function fetchAdminRsvps(): Promise<{
+  rsvps: RSVPResponse[];
+  metrics: any;
+  source: 'local' | 'google-sheet';
+}> {
   const res = await fetch('/api/admin/rsvps', {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error('Failed to load RSVP responses');
+  if (!res.ok) {
+    const data = await readApiJson<{ error?: string }>(res);
+    throw new Error(data.error || 'Failed to load RSVP responses');
+  }
   return readApiJson(res);
+}
+
+export async function downloadAdminRsvpsCsv(): Promise<void> {
+  const res = await fetch('/api/admin/rsvps/export.csv', {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const data = await readApiJson<{ error?: string }>(res);
+    throw new Error(data.error || 'Failed to export RSVP responses');
+  }
+
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'little-racer-turns-one-rsvps.csv';
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function updateAdminRsvp(id: string, updates: Partial<RSVPResponse>): Promise<RSVPResponse> {

@@ -22,3 +22,5 @@ services:
         sync: false
       - key: VITE_RSVP_SCRIPT_URL
         sync: false
+      - key: RSVP_SHEET_READ_KEY
+        sync: false
