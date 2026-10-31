@@ -1,0 +1,6 @@
+{
+  "name": "Little Racer Turns ONE - Baby Boy First Birthday Invitation",
+  "description": "Customizable, mobile-responsive racing car themed first birthday invitation website with interactive RSVP, live countdown, venue map, and private admin dashboard.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

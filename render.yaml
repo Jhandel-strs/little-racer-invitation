@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: little-racer-invitation
+    runtime: node
+    plan: 0.5c-512mb
+    region: singapore
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    disk:
+      name: little-racer-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: NODE_ENV
+        value: production
+      - key: RENDER_DATA_DIR
+        value: /var/data
+      - key: DATA_DIR
+        value: /var/data/data
+      - key: UPLOADS_DIR
+        value: /var/data/uploads
+      - key: ADMIN_BOOTSTRAP_PASSWORD
+        sync: false

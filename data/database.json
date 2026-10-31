@@ -1,0 +1,388 @@
+{
+  "admin": {
+    "id": "admin-01",
+    "username": "admin",
+    "passwordHash": "d5fbadf3790529052cfedc89fb9dfd4c58d32972759b51d3beb97783e41098dc182c1fa34b76cfa182688c81c8bf92fb83c3e1c95c35865afa2f3b4c1aef3c36",
+    "salt": "b7a35cb7c61ae3ee36f3341976797bda",
+    "createdAt": "2026-10-24T11:35:41.954Z"
+  },
+  "draftInvitation": {
+    "id": "inv-little-racer-001",
+    "slug": "little-racer-turns-one",
+    "status": "published",
+    "celebrantName": "Eros",
+    "turningAge": 1,
+    "birthdayTitle": "Eros 1st Birthday",
+    "tagline": "Fast & One-derful! The  First  and Furious Birthday Celebration!",
+    "welcomeMessage": "Get ready to race into a day full of giggles,  and unforgettable memories as our little champion Eros crosses the finish line into year ONE!",
+    "eventDate": "2026-11-26",
+    "startTime": "19:00",
+    "endTime": "21:00",
+    "timezone": "Asia/Manila",
+    "venueName": "Jollibee Banawe (In front of Philippine Orthopedic Center)",
+    "venueAddress": "Banawe St. (In front of Philippine Orthopedic Center), Santa Mesa Heights, Quezon City, Metro Manila",
+    "venueCoordinates": {
+      "lat": 14.6293,
+      "lng": 121.0028
+    },
+    "googleMapsUrl": "https://maps.google.com/?q=Jollibee+Banawe,+Quezon+City,+Philippines",
+    "dressCode": "Gray, White, Red except blue.",
+    "reminders": "• Complimentary parking available at Jollibee Banawe.\n• Jollibee & Friends party games and special mascot show!\n• Official Cake Ceremony & Birthday Song begins at 7 PM sharp!\n• Delicious Chickenjoy, Jolly Spaghetti, and party treats for all guests!",
+    "closingMessage": "Thank you for being part of Eros' extraordinary first year! Your love and presence mean the world to us.",
+    "closingSignOff": "See you at the starting line! — The Family",
+    "mainPhotoUrl": "/uploads/DSC02746_1793469277928_183730721.jpg",
+    "backdropUrl": "/uploads/DSC02816_JPG_1793469292247_492624375.jpg",
+    "trophyIllustrationUrl": "/src/assets/images/winner_podium_trophy_1792841010098.jpg",
+    "gallery": [
+      {
+        "id": "g-1793469311671",
+        "url": "/uploads/DSC02654_1793469311450_803876592.jpg",
+        "caption": "Milestone Lap",
+        "ageMonth": "Month 12"
+      },
+      {
+        "id": "g-1793469331772",
+        "url": "/uploads/DSC02876_1793469331550_787394700.jpg",
+        "caption": "Milestone Lap",
+        "ageMonth": "Month 12"
+      },
+      {
+        "id": "g-1793469365228",
+        "url": "/uploads/DSC02763_JPG_1793469365143_930927722.jpg",
+        "caption": "Milestone Lap",
+        "ageMonth": "Month 12"
+      }
+    ],
+    "schedule": [
+      {
+        "id": "s-1",
+        "time": "7:00 PM",
+        "title": "Pit Lane Arrival & Check-In",
+        "description": "Guests arrive, grab party hats, personalized racing lanyards and pit crew refreshments."
+      },
+      {
+        "id": "s-2",
+        "time": "7:30 PM",
+        "title": "Grand Prix Party Games & Jollibee Mascot Show",
+        "description": "Fun-filled party games, dancing, and high-energy celebration with Jollibee!"
+      },
+      {
+        "id": "s-3",
+        "time": "8:15 PM",
+        "title": "Champion Cake Ceremony & Birthday Song",
+        "description": "Singing Happy Birthday and blowing the candle for our little champion Eros!"
+      },
+      {
+        "id": "s-4",
+        "time": "8:30 PM",
+        "title": "Winner's Feast (Chickenjoy & Treats)",
+        "description": "Crispy Chickenjoy, Jolly Spaghetti, Peach Mango Pies, and celebration drinks."
+      },
+      {
+        "id": "s-5",
+        "time": "9:00 PM",
+        "title": "Victory Podium Photo Ops & Favors",
+        "description": "Commemorative photos with Eros, checkered flags, and party loot bags."
+      }
+    ],
+    "milestones": {
+      "favoriteFood": "Chickenjoy & mashed sweet potatoes",
+      "favoriteToy": "Zooming red sports car",
+      "teethCount": 6,
+      "lovesTo": "Clap hands when hearing music & wave flags",
+      "superpower": "Speed crawling across the room in 3 seconds flat!"
+    },
+    "theme": {
+      "primaryColor": "#E11D48",
+      "secondaryColor": "#0F172A",
+      "accentColor": "#F59E0B",
+      "creamColor": "#F8FAFC",
+      "fontFamily": "Outfit",
+      "overlayOpacity": 0.35,
+      "confettiEnabled": true,
+      "showTireMarks": true,
+      "showCheckeredBorders": true,
+      "marqueeText": "🏁 EROS TURNS ONE 🏎️ GRAND PRIX CELEBRATION 🏁 JOLLIBEE BANAWE (IN FRONT OF PHILIPPINE ORTHOPEDIC CENTER) 🏎️ VIP PIT PASS ONLY 🏁",
+      "badgeText": "VIP PIT CREW PASS",
+      "ticketNumber": "PASS #001-EROS · ADMIT ONE",
+      "canvaAnimationEnabled": false,
+      "envelopeBannerText": "YOU'VE RECEIVED AN OFFICIAL  INVITATION",
+      "envelopeSalutation": "CORDIALLY INVITING",
+      "envelopeAddressee": "Family & Friends",
+      "envelopeTagline": "To celebrate Eros' 1st Birthday Grand Prix!",
+      "lapNames": {
+        "lap1": "LAP 1: STARTING GRID 🚦",
+        "lap2": "LAP 2: MEET EROS 🏆",
+        "lap3": "LAP 3: LIVE RACE CLOCK ⏱️",
+        "lap4": "LAP 4: JOLLIBEE SCHEDULE 🏎️",
+        "lap5": "LAP 5: PHOTO REEL 📸",
+        "lap6": "LAP 6: GUEST CHEERS 💬",
+        "lap7": "LAP 7: JOLLIBEE BANAWE 🗺️",
+        "finish": "FINISH LINE: PIT PASS RSVP 🏁"
+      }
+    },
+    "rsvpSettings": {
+      "enabled": true,
+      "deadline": "2026-11-20",
+      "maxAttendeesPerRsvp": 6,
+      "allowAdditionalGuests": true,
+      "collectPhone": true,
+      "collectEmail": true,
+      "collectDietaryNotes": true,
+      "collectMessage": true,
+      "customConfirmationMessage": "Vroom vroom! Your pit pass is confirmed for Eros' 1st Birthday. See you at Jollibee Banawe!"
+    },
+    "visibility": {
+      "hero": true,
+      "intro": true,
+      "milestones": true,
+      "countdown": true,
+      "schedule": true,
+      "details": true,
+      "gallery": true,
+      "wishlist": true,
+      "faq": true,
+      "wishes": true,
+      "map": true,
+      "rsvp": true,
+      "closing": true
+    },
+    "publishedAt": "2026-10-31T17:56:15.869Z",
+    "updatedAt": "2026-10-31T18:05:10.959Z",
+    "createdAt": "2026-10-24T11:35:41.942Z",
+    "wishes": [
+      {
+        "id": "wish-1793470387624",
+        "guestName": "Gab Test",
+        "message": "Happy Birthday!!",
+        "badgeEmoji": "🏆",
+        "timestamp": "2026-10-31T18:13:07.624Z"
+      },
+      {
+        "id": "wish-1",
+        "guestName": "Auntie Jessica",
+        "message": "Happy 1st Birthday baby Eros! Vroom to the moon!",
+        "badgeEmoji": "⭐",
+        "timestamp": "2026-10-24T11:58:53.738Z"
+      }
+    ],
+    "faqs": [
+      {
+        "id": "faq-1",
+        "question": "What is the dress code for the party?",
+        "answer": "Gray, White, Red except blue. Please dress in these racing colors to join in the photo motif!"
+      },
+      {
+        "id": "faq-2",
+        "question": "Where is the venue located?",
+        "answer": "Jollibee Banawe, located directly in front of the Philippine Orthopedic Center on Banawe St., Quezon City."
+      },
+      {
+        "id": "faq-3",
+        "question": "Is there parking available?",
+        "answer": "Yes, complimentary parking is available at the Jollibee Banawe parking slots and nearby streets."
+      },
+      {
+        "id": "faq-4",
+        "question": "What time will the mascot show start?",
+        "answer": "The games and Jollibee mascot appearance will begin promptly around 7:30 PM!"
+      }
+    ]
+  },
+  "publishedInvitation": {
+    "id": "inv-little-racer-001",
+    "slug": "little-racer-turns-one",
+    "status": "published",
+    "celebrantName": "Eros",
+    "turningAge": 1,
+    "birthdayTitle": "Eros 1st Birthday",
+    "tagline": "Fast & One-derful! The Grand Prix of First Birthdays",
+    "welcomeMessage": "Get ready to race into a night full of giggles, checkered flags, and unforgettable memories as our little champion Eros crosses the finish line into year ONE!",
+    "eventDate": "2026-11-26",
+    "startTime": "19:00",
+    "endTime": "21:00",
+    "timezone": "Asia/Manila",
+    "venueName": "Jollibee Banawe (In front of Philippine Orthopedic Center)",
+    "venueAddress": "Banawe St. (In front of Philippine Orthopedic Center), Santa Mesa Heights, Quezon City, Metro Manila",
+    "venueCoordinates": {
+      "lat": 14.6293,
+      "lng": 121.0028
+    },
+    "googleMapsUrl": "https://maps.google.com/?q=Jollibee+Banawe,+Quezon+City,+Philippines",
+    "dressCode": "Gray, White, Red except blue.",
+    "reminders": "• Complimentary parking available at Jollibee Banawe.\n• Jollibee & Friends party games and special mascot show!\n• Official Cake Ceremony & Birthday Song begins at 8:15 PM sharp!\n• Delicious Chickenjoy, Jolly Spaghetti, and party treats for all guests!",
+    "closingMessage": "Thank you for being part of Eros' extraordinary first year! Your love and presence mean the world to us.",
+    "closingSignOff": "See you at the starting line! — The Family",
+    "mainPhotoUrl": "/uploads/DSC02746_1793469277928_183730721.jpg",
+    "backdropUrl": "/uploads/DSC02816_JPG_1793469292247_492624375.jpg",
+    "trophyIllustrationUrl": "/src/assets/images/winner_podium_trophy_1792841010098.jpg",
+    "gallery": [
+      {
+        "id": "g-1793469311671",
+        "url": "/uploads/DSC02654_1793469311450_803876592.jpg",
+        "caption": "Milestone Lap",
+        "ageMonth": "Month 12"
+      },
+      {
+        "id": "g-1793469331772",
+        "url": "/uploads/DSC02876_1793469331550_787394700.jpg",
+        "caption": "Milestone Lap",
+        "ageMonth": "Month 12"
+      },
+      {
+        "id": "g-1793469365228",
+        "url": "/uploads/DSC02763_JPG_1793469365143_930927722.jpg",
+        "caption": "Milestone Lap",
+        "ageMonth": "Month 12"
+      }
+    ],
+    "schedule": [
+      {
+        "id": "s-1",
+        "time": "7:00 PM",
+        "title": "Pit Lane Arrival & Check-In",
+        "description": "Guests arrive, grab party hats, personalized racing lanyards and pit crew refreshments."
+      },
+      {
+        "id": "s-2",
+        "time": "7:30 PM",
+        "title": "Grand Prix Party Games & Jollibee Mascot Show",
+        "description": "Fun-filled party games, dancing, and high-energy celebration with Jollibee!"
+      },
+      {
+        "id": "s-3",
+        "time": "8:15 PM",
+        "title": "Champion Cake Ceremony & Birthday Song",
+        "description": "Singing Happy Birthday and blowing the candle for our little champion Eros!"
+      },
+      {
+        "id": "s-4",
+        "time": "8:30 PM",
+        "title": "Winner's Feast (Chickenjoy & Treats)",
+        "description": "Crispy Chickenjoy, Jolly Spaghetti, Peach Mango Pies, and celebration drinks."
+      },
+      {
+        "id": "s-5",
+        "time": "9:00 PM",
+        "title": "Victory Podium Photo Ops & Favors",
+        "description": "Commemorative photos with Eros, checkered flags, and party loot bags."
+      }
+    ],
+    "milestones": {
+      "favoriteFood": "Chickenjoy & mashed sweet potatoes",
+      "favoriteToy": "Zooming red sports car",
+      "teethCount": 6,
+      "lovesTo": "Clap hands when hearing music & wave flags",
+      "superpower": "Speed crawling across the room in 3 seconds flat!"
+    },
+    "theme": {
+      "primaryColor": "#E11D48",
+      "secondaryColor": "#0F172A",
+      "accentColor": "#F59E0B",
+      "creamColor": "#F8FAFC",
+      "fontFamily": "Outfit",
+      "overlayOpacity": 0.35,
+      "confettiEnabled": true,
+      "showTireMarks": true,
+      "showCheckeredBorders": true,
+      "marqueeText": "🏁 EROS TURNS ONE 🏎️ GRAND PRIX CELEBRATION 🏁 JOLLIBEE BANAWE (IN FRONT OF PHILIPPINE ORTHOPEDIC CENTER) 🏎️ VIP PIT PASS ONLY 🏁",
+      "badgeText": "VIP PIT CREW PASS",
+      "ticketNumber": "PASS #001-EROS · ADMIT ONE",
+      "canvaAnimationEnabled": true,
+      "envelopeBannerText": "YOU'VE RECEIVED AN OFFICIAL GRAND PRIX INVITATION",
+      "envelopeSalutation": "CORDIALLY INVITING",
+      "envelopeAddressee": "VIP Family & Friends",
+      "envelopeTagline": "To celebrate Eros' 1st Birthday Grand Prix!",
+      "lapNames": {
+        "lap1": "LAP 1: STARTING GRID 🚦",
+        "lap2": "LAP 2: MEET EROS 🏆",
+        "lap3": "LAP 3: LIVE RACE CLOCK ⏱️",
+        "lap4": "LAP 4: JOLLIBEE SCHEDULE 🏎️",
+        "lap5": "LAP 5: PHOTO REEL 📸",
+        "lap6": "LAP 6: GUEST CHEERS 💬",
+        "lap7": "LAP 7: JOLLIBEE BANAWE 🗺️",
+        "finish": "FINISH LINE: PIT PASS RSVP 🏁"
+      }
+    },
+    "rsvpSettings": {
+      "enabled": true,
+      "deadline": "2026-11-20",
+      "maxAttendeesPerRsvp": 6,
+      "allowAdditionalGuests": true,
+      "collectPhone": true,
+      "collectEmail": true,
+      "collectDietaryNotes": true,
+      "collectMessage": true,
+      "customConfirmationMessage": "Vroom vroom! Your pit pass is confirmed for Eros' 1st Birthday. See you at Jollibee Banawe!"
+    },
+    "visibility": {
+      "hero": true,
+      "intro": true,
+      "milestones": true,
+      "countdown": true,
+      "schedule": true,
+      "details": true,
+      "gallery": true,
+      "wishlist": true,
+      "faq": true,
+      "wishes": true,
+      "map": true,
+      "rsvp": true,
+      "closing": true
+    },
+    "publishedAt": "2026-10-31T17:56:15.869Z",
+    "updatedAt": "2026-10-31T17:56:15.869Z",
+    "createdAt": "2026-10-24T11:35:41.942Z",
+    "wishes": [
+      {
+        "id": "wish-1793470387624",
+        "guestName": "Gab Test",
+        "message": "Happy Birthday!!",
+        "badgeEmoji": "🏆",
+        "timestamp": "2026-10-31T18:13:07.624Z"
+      },
+      {
+        "id": "wish-1",
+        "guestName": "Auntie Jessica",
+        "message": "Happy 1st Birthday baby Eros! Vroom to the moon!",
+        "badgeEmoji": "⭐",
+        "timestamp": "2026-10-24T11:58:53.738Z"
+      }
+    ],
+    "faqs": [
+      {
+        "id": "faq-1",
+        "question": "What is the dress code for the party?",
+        "answer": "Gray, White, Red except blue. Please dress in these racing colors to join in the photo motif!"
+      },
+      {
+        "id": "faq-2",
+        "question": "Where is the venue located?",
+        "answer": "Jollibee Banawe, located directly in front of the Philippine Orthopedic Center on Banawe St., Quezon City."
+      },
+      {
+        "id": "faq-3",
+        "question": "Is there parking available?",
+        "answer": "Yes, complimentary parking is available at the Jollibee Banawe parking slots and nearby streets."
+      },
+      {
+        "id": "faq-4",
+        "question": "What time will the mascot show start?",
+        "answer": "The games and Jollibee mascot appearance will begin promptly around 7:30 PM!"
+      }
+    ]
+  },
+  "rsvps": [],
+  "sessions": [
+    {
+      "token": "437b4e6ba4d5f494dac4bb99a8b0bcc0e6fab87ef89862ea211184b54b914f7f",
+      "userId": "admin-01",
+      "expiresAt": 1794073992376
+    },
+    {
+      "token": "38045058babedc1c5f57cf2da24caf7b3b3d20bb19414d51d7e5574cb5a89406",
+      "userId": "admin-01",
+      "expiresAt": 1794075017933
+    }
+  ]
+}
