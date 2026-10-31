@@ -57,13 +57,31 @@ function initializeRenderStorage() {
   if (!RENDER_DATA_DIR) return;
 
   const markerFile = path.join(RENDER_DATA_DIR, '.little-racer-seeded');
-  if (fs.existsSync(markerFile)) return;
-
   const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim();
   if (!bootstrapPassword || bootstrapPassword.length < 4) {
     throw new Error(
-      'Set ADMIN_BOOTSTRAP_PASSWORD to a password of at least 4 characters before the first Render start.'
+      'Set ADMIN_BOOTSTRAP_PASSWORD in Render to a password of at least 4 characters. Use a unique value with 12 or more characters.'
     );
+  }
+
+  if (fs.existsSync(markerFile)) {
+    try {
+      const marker = JSON.parse(fs.readFileSync(markerFile, 'utf-8')) as {
+        version?: number;
+        hash?: string;
+        salt?: string;
+      };
+      if (
+        marker.version === 1 &&
+        marker.hash &&
+        marker.salt &&
+        verifyPassword(bootstrapPassword, marker.hash, marker.salt)
+      ) {
+        return;
+      }
+    } catch {
+      // Older timestamp-only markers are upgraded below using the current Render secret.
+    }
   }
 
   fs.mkdirSync(RENDER_DATA_DIR, { recursive: true });
@@ -99,7 +117,12 @@ function initializeRenderStorage() {
   const tempFile = `${DB_FILE}.bootstrap.tmp`;
   fs.writeFileSync(tempFile, JSON.stringify(database, null, 2), 'utf-8');
   fs.renameSync(tempFile, DB_FILE);
-  fs.writeFileSync(markerFile, new Date().toISOString(), 'utf-8');
+  const markerHash = hashPassword(bootstrapPassword);
+  fs.writeFileSync(
+    markerFile,
+    JSON.stringify({ version: 1, ...markerHash }),
+    'utf-8'
+  );
 }
 
 initializeRenderStorage();
@@ -372,11 +395,7 @@ class Database {
         const parsed = JSON.parse(raw);
         if (parsed.admin && parsed.draftInvitation) {
           if (!parsed.admin.username || parsed.admin.email) {
-            const { hash, salt } = hashPassword('1111');
             parsed.admin.username = 'admin';
-            parsed.admin.passwordHash = hash;
-            parsed.admin.salt = salt;
-            parsed.sessions = [];
             delete parsed.admin.email;
             this.save(parsed);
           }
@@ -387,8 +406,13 @@ class Database {
       }
     }
 
-    // Initialize with default admin: admin / 1111
-    const { hash, salt } = hashPassword(process.env.ADMIN_BOOTSTRAP_PASSWORD || '1111');
+    // Local development keeps a legacy convenience password; production must configure a secret.
+    const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim() ||
+      (process.env.NODE_ENV === 'production' ? '' : '1111');
+    if (bootstrapPassword.length < 4) {
+      throw new Error('Set ADMIN_BOOTSTRAP_PASSWORD before creating the administrator account.');
+    }
+    const { hash, salt } = hashPassword(bootstrapPassword);
     const initial: DatabaseSchema = {
       admin: {
         id: 'admin-01',

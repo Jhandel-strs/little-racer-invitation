@@ -1,4 +1,4 @@
-import type { InvitationData, RSVPResponse } from '../types/invitation';
+import type { GuestWish, InvitationData, RSVPResponse } from '../types/invitation';
 
 const TOKEN_KEY = 'little_racer_admin_token';
 
@@ -170,7 +170,10 @@ export async function fetchAdminInvitation(): Promise<{
   const res = await fetch('/api/admin/invitation', {
     headers: getAuthHeaders(),
   });
-  if (!res.ok) throw new Error('Failed to fetch admin invitation details');
+  if (!res.ok) {
+    const data = await readApiJson<{ error?: string }>(res);
+    throw new Error(data.error || `Failed to fetch admin invitation details (HTTP ${res.status}).`);
+  }
   return readApiJson(res);
 }
 
@@ -247,6 +250,21 @@ export async function fetchAdminRsvps(): Promise<{
   if (!res.ok) {
     const data = await readApiJson<{ error?: string }>(res);
     throw new Error(data.error || 'Failed to load RSVP responses');
+  }
+  return readApiJson(res);
+}
+
+export async function fetchAdminWishes(): Promise<{
+  wishes: GuestWish[];
+  source: 'local' | 'google-sheet';
+  warning?: string;
+}> {
+  const res = await fetch('/api/admin/wishes', {
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const data = await readApiJson<{ error?: string }>(res);
+    throw new Error(data.error || `Failed to load birthday wishes (HTTP ${res.status}).`);
   }
   return readApiJson(res);
 }

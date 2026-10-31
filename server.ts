@@ -12,10 +12,10 @@ const isProd = process.env.NODE_ENV === 'production';
 const rsvpSheetUrl = process.env.RSVP_SCRIPT_URL?.trim();
 const rsvpSheetReadKey = process.env.RSVP_SHEET_READ_KEY?.trim();
 
-function requireSharedGuestStorage(res: Response): boolean {
-  if (!isProd || (rsvpSheetUrl && rsvpSheetReadKey)) return false;
+function requireGuestStorageConfiguration(res: Response): boolean {
+  if (!isProd || rsvpSheetUrl) return false;
   res.status(503).json({
-    error: 'Shared guest storage is not connected. Set the Apps Script URL and RSVP read key before collecting RSVPs or birthday wishes.',
+    error: 'Guest submissions are not connected. Set RSVP_SCRIPT_URL to the deployed Google Apps Script web app URL ending in /exec.',
   });
   return true;
 }
@@ -36,7 +36,10 @@ async function requestRsvpSheet<T>(payload: Record<string, unknown>): Promise<T 
   try {
     result = JSON.parse(body);
   } catch {
-    throw new Error('The guestbook storage did not return a valid response.');
+    const contentType = response.headers.get('content-type')?.split(';')[0] || 'unknown content type';
+    throw new Error(
+      `Guestbook storage returned ${contentType} (HTTP ${response.status}) instead of JSON. Check that RSVP_SCRIPT_URL is the deployed Apps Script web app URL ending in /exec, with access set to Anyone.`
+    );
   }
   if (!response.ok || !result.success) {
     throw new Error(result.error || `Guestbook storage failed (HTTP ${response.status}).`);
@@ -265,27 +268,9 @@ app.get('/api/invitation/:slug', async (req: Request, res: Response) => {
 
 // Admin get current invitation (both draft and published snapshot)
 app.get('/api/admin/invitation', requireAdmin, async (_req: Request, res: Response) => {
-  if (requireSharedGuestStorage(res)) return;
-
-  let draft = db.getDraftInvitation();
-  let published = db.getPublishedInvitation();
-  let rsvps = db.getAllRSVPs();
-
-  if (rsvpSheetUrl && rsvpSheetReadKey) {
-    try {
-      const [sheetRsvps, sheetWishes] = await Promise.all([getAdminRsvps(), getSheetWishes()]);
-      rsvps = sheetRsvps.rsvps;
-      const mergedWishes = mergeWishes(draft.wishes || [], sheetWishes);
-      draft = { ...draft, wishes: mergedWishes };
-      if (published) published = { ...published, wishes: mergedWishes };
-    } catch (error) {
-      console.error('Could not load guest activity from the RSVP sheet:', error);
-      res.status(502).json({
-        error: error instanceof Error ? error.message : 'Could not load guest activity from shared storage.',
-      });
-      return;
-    }
-  }
+  const draft = db.getDraftInvitation();
+  const published = db.getPublishedInvitation();
+  const rsvps = db.getAllRSVPs();
 
   const totalResponses = rsvps.length;
   const attendingCount = rsvps.filter((r) => r.attending).length;
@@ -360,7 +345,7 @@ app.post('/api/admin/upload', requireAdmin, upload.single('file'), (req: Request
 
 // Post a guest birthday wish
 app.post('/api/wishes/:slug', checkRateLimit, async (req: Request, res: Response) => {
-  if (requireSharedGuestStorage(res)) return;
+  if (requireGuestStorageConfiguration(res)) return;
 
   const { slug } = req.params;
   const invitation = db.getPublishedInvitation(slug);
@@ -451,7 +436,7 @@ app.get('/api/calendar/:slug/invite.ics', (req: Request, res: Response) => {
 
 // Public guest RSVP submission
 app.post('/api/rsvp/:slug', checkRateLimit, async (req: Request, res: Response) => {
-  if (requireSharedGuestStorage(res)) return;
+  if (requireGuestStorageConfiguration(res)) return;
 
   const { slug } = req.params;
   const invitation = db.getPublishedInvitation(slug);
@@ -658,6 +643,34 @@ app.get('/api/admin/rsvps', requireAdmin, async (_req: Request, res: Response) =
     console.error('Failed to load admin RSVP responses:', error);
     res.status(502).json({
       error: error instanceof Error ? error.message : 'Unable to load RSVP responses.',
+    });
+  }
+});
+
+app.get('/api/admin/wishes', requireAdmin, async (_req: Request, res: Response) => {
+  const invitationWishes = mergeWishes(
+    db.getDraftInvitation().wishes || [],
+    db.getPublishedInvitation()?.wishes || []
+  );
+
+  if (!rsvpSheetUrl || !rsvpSheetReadKey) {
+    res.json({
+      wishes: invitationWishes,
+      source: 'local',
+      warning: isProd && rsvpSheetUrl
+        ? 'Set RSVP_SHEET_READ_KEY on the web service and RSVP_READ_KEY in Apps Script to view shared birthday wishes.'
+        : undefined,
+    });
+    return;
+  }
+
+  try {
+    const wishes = mergeWishes(invitationWishes, await getSheetWishes());
+    res.json({ wishes, source: 'google-sheet' });
+  } catch (error) {
+    console.error('Failed to load admin birthday wishes:', error);
+    res.status(502).json({
+      error: error instanceof Error ? error.message : 'Unable to load birthday wishes.',
     });
   }
 });

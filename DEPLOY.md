@@ -18,10 +18,12 @@ Keep the spreadsheet private. Guests can submit RSVPs and wishes; the script onl
 ## Deploy the invitation on Render for free
 
 1. Connect the private GitHub repository to Render and create a **Blueprint** from `render.yaml`.
-2. Set `ADMIN_BOOTSTRAP_PASSWORD` to `1111` (the requested admin password).
+2. Set `ADMIN_BOOTSTRAP_PASSWORD` to a unique password of at least 12 characters. The username is `admin`; do not use `admin` or `1111` as the password because they are easy to guess and may be flagged as compromised.
 3. Set `RSVP_SCRIPT_URL` to the Apps Script `/exec` URL.
 4. Set `RSVP_SHEET_READ_KEY` to the exact same value as the Apps Script `RSVP_READ_KEY` property.
 5. Deploy and open the new Web Service URL. Sign in at `/admin`; the **RSVPs & Guests** tab shows the responses, and **Refresh** loads the latest replies. Submit one test RSVP and confirm it appears in both the dashboard and private sheet before sharing the invitation.
+
+To recover admin access, change `ADMIN_BOOTSTRAP_PASSWORD` in the Render service environment to a new private value and redeploy. The service rotates the admin password to that value and clears existing admin sessions. The username remains `admin`.
 
 The Render Free Web Service may take about a minute to wake after 15 minutes without visitors. Its local files reset when it spins down or redeploys, so RSVP responses go directly to Google Sheets instead. Sheet-backed responses are view-only in the dashboard. Invitation edits and newly uploaded photos through the admin dashboard are temporary on this free service.
 

@@ -31,6 +31,7 @@ import {
 import type { InvitationData, RSVPResponse, ScheduleItem, GalleryItem, FaqItem } from '../../types/invitation';
 import {
   fetchAdminInvitation,
+  fetchAdminWishes,
   saveDraftInvitation,
   publishInvitation,
   unpublishInvitation,
@@ -85,20 +86,55 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
       setPublished(data.published);
       setStats(data.stats);
 
-      const rsvpData = await fetchAdminRsvps();
-      const wishes = data.published?.wishes ?? data.draft.wishes ?? [];
-      const currentActivityIds = new Set([
-        ...rsvpData.rsvps.map((rsvp) => `rsvp:${rsvp.id}`),
-        ...wishes.map((wish) => `wish:${wish.id}`),
+      const [rsvpResult, wishResult] = await Promise.allSettled([
+        fetchAdminRsvps(),
+        fetchAdminWishes(),
       ]);
+      const requestErrors: string[] = [];
+      const activityRsvps = rsvpResult.status === 'fulfilled' ? rsvpResult.value.rsvps : [];
+      const wishes = wishResult.status === 'fulfilled'
+        ? wishResult.value.wishes
+        : data.published?.wishes ?? data.draft.wishes ?? [];
 
-      if (backgroundRefresh && seenActivityIds.current) {
-        const newRsvp = rsvpData.rsvps.find(
-          (rsvp) => !seenActivityIds.current?.has(`rsvp:${rsvp.id}`)
-        );
-        const newWish = wishes.find(
-          (wish) => !seenActivityIds.current?.has(`wish:${wish.id}`)
-        );
+      if (rsvpResult.status === 'fulfilled') {
+        setRsvps(rsvpResult.value.rsvps);
+        setRsvpMetrics(rsvpResult.value.metrics);
+        setRsvpSource(rsvpResult.value.source);
+      } else {
+        requestErrors.push(rsvpResult.reason instanceof Error
+          ? rsvpResult.reason.message
+          : 'RSVP responses could not be loaded.');
+      }
+
+      if (wishResult.status === 'fulfilled') {
+        const mergedWishes = wishResult.value.wishes;
+        setDraft((current) => current ? { ...current, wishes: mergedWishes } : current);
+        setPublished((current) => current ? { ...current, wishes: mergedWishes } : current);
+        if (wishResult.value.warning) requestErrors.push(wishResult.value.warning);
+      } else {
+        requestErrors.push(wishResult.reason instanceof Error
+          ? wishResult.reason.message
+          : 'Birthday wishes could not be loaded.');
+      }
+
+      const previousActivityIds = seenActivityIds.current;
+      const currentActivityIds = new Set(previousActivityIds ?? []);
+      if (rsvpResult.status === 'fulfilled') {
+        for (const id of currentActivityIds) if (id.startsWith('rsvp:')) currentActivityIds.delete(id);
+        for (const rsvp of activityRsvps) currentActivityIds.add(`rsvp:${rsvp.id}`);
+      }
+      if (wishResult.status === 'fulfilled') {
+        for (const id of currentActivityIds) if (id.startsWith('wish:')) currentActivityIds.delete(id);
+        for (const wish of wishes) currentActivityIds.add(`wish:${wish.id}`);
+      }
+
+      if (backgroundRefresh && previousActivityIds) {
+        const newRsvp = rsvpResult.status === 'fulfilled'
+          ? activityRsvps.find((rsvp) => !previousActivityIds.has(`rsvp:${rsvp.id}`))
+          : undefined;
+        const newWish = wishResult.status === 'fulfilled'
+          ? wishes.find((wish) => !previousActivityIds.has(`wish:${wish.id}`))
+          : undefined;
 
         if (newRsvp || newWish) {
           const notice = newRsvp
@@ -116,9 +152,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
       }
 
       seenActivityIds.current = currentActivityIds;
-      setRsvps(rsvpData.rsvps);
-      setRsvpMetrics(rsvpData.metrics);
-      setRsvpSource(rsvpData.source);
+      if (requestErrors.length && !backgroundRefresh) setErrorMsg(requestErrors.join(' '));
     } catch (err: any) {
       if (!backgroundRefresh) {
         setErrorMsg(err.message || 'Failed to load admin data.');
@@ -392,10 +426,31 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   if (!draft) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white p-4">
-        <div className="flex items-center gap-3">
-          <div className="w-5 h-5 rounded-full border-2 border-rose-500 border-t-transparent animate-spin" />
-          <span>Loading Pit Stop Dashboard...</span>
-        </div>
+        {errorMsg ? (
+          <div className="max-w-lg w-full rounded-2xl border border-rose-500/40 bg-slate-900 p-6 text-center shadow-xl">
+            <h1 className="font-display text-xl font-black uppercase">Dashboard could not load</h1>
+            <p role="alert" className="mt-3 text-sm leading-6 text-rose-200">{errorMsg}</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => { setErrorMsg(null); void loadData(); }}
+                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold hover:bg-rose-500"
+              >
+                Try again
+              </button>
+              <button
+                onClick={onLogout}
+                className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-bold text-slate-300 hover:bg-slate-800"
+              >
+                Back to login
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-5 h-5 rounded-full border-2 border-rose-500 border-t-transparent animate-spin" />
+            <span>Loading Pit Stop Dashboard...</span>
+          </div>
+        )}
       </div>
     );
   }
