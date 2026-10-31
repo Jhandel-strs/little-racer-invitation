@@ -1,15 +1,26 @@
-# Deploy to Render
+# Free RSVP deployment
 
-This app uses Express plus local JSON and image-file storage. The Render Blueprint in `render.yaml` configures a persistent disk so invitation edits, RSVPs, and uploaded photos survive restarts and deploys.
+This setup uses a free Render Web Service for the invitation and a private Google Sheet for RSVP responses. It does not need a paid Render disk.
 
-## Before deploying
+## Set up the RSVP sheet
 
-- Put this project in a **private** GitHub repository. `data/database.json` contains invitation details and RSVP contact information, and `uploads/` contains personal photos. Do not publish the source repository.
-- In Render, create a **Blueprint** from that private repository so Render reads `render.yaml`. This app must run as a Node Web Service because its Express server handles the `/api/...` routes. A Render Static Site can show the page but cannot handle logins, invitation data, RSVPs, or uploads. Render cannot convert the existing Static Site in place, so the Blueprint creates a separate Web Service named `little-racer-invitation-web` with its own URL.
-- The build command installs development dependencies because the Vite build and TypeScript server runner are included there.
-- Set `ADMIN_BOOTSTRAP_PASSWORD` to a new, unique password of at least 12 characters when Render prompts for the secret. This changes only the deployed admin password; the local app stays as-is.
-- The Blueprint uses a paid web service and a 1 GB persistent disk. Render Free services do not support persistent disks, so they would lose saved edits, RSVPs, and uploads on restarts.
+1. Create a Google Sheet in the account where you want to receive responses.
+2. In that sheet, open **Extensions → Apps Script**.
+3. Replace the sample code with the contents of `GoogleSheetsRSVP.gs`, then save.
+4. In the function menu, choose `initialize` and click **Run**. Approve Google's authorization prompt.
+5. Choose **Deploy → New deployment → Web app**.
+6. Set **Execute as** to your account and **Who has access** to **Anyone**, then deploy.
+7. Copy the web app URL that ends in `/exec`. Opening it should show “RSVP receiver is ready.”
 
-The first service start copies the current invitation database and uploaded photos to the persistent disk, rotates the deployed admin password, and clears any local login sessions. Later starts keep the disk data unchanged.
+The script only appends RSVP details. It does not provide a way to read the sheet. Keep the spreadsheet private.
 
-After the first deploy finishes, Render provides an `onrender.com` URL. The public invitation is at `/invite/little-racer-turns-one`; the admin login is at `/admin`.
+## Deploy the invitation on Render for free
+
+1. Connect the private GitHub repository to Render and create a **Blueprint** from `render.yaml`.
+2. Set `ADMIN_BOOTSTRAP_PASSWORD` to a unique password with at least 12 characters.
+3. Set `VITE_RSVP_SCRIPT_URL` to the Apps Script `/exec` URL.
+4. Deploy and open the new Web Service URL. Submit one test RSVP and confirm it appears in the private sheet before sharing the invitation.
+
+The Render Free Web Service may take about a minute to wake after 15 minutes without visitors. Its local files reset when it spins down or redeploys, so RSVP responses go directly to Google Sheets instead. The admin dashboard's local RSVP list will not include sheet responses; check the spreadsheet for the guest list. Invitation edits and newly uploaded photos through the admin dashboard are temporary on this free service.
+
+The existing Render Static Site cannot run the Express API. Keep it until the new Web Service has passed the test RSVP, then you can remove the old site if you want.

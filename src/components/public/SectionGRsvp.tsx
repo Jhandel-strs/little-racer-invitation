@@ -10,6 +10,7 @@ interface Props {
 }
 
 export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
+  const usesGoogleSheetRsvp = Boolean(import.meta.env.VITE_RSVP_SCRIPT_URL?.trim());
   const rsvpConfig = invitation.rsvpSettings || {
     enabled: true,
     deadline: '2026-11-01',
@@ -40,6 +41,7 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
     attendeeCount: number;
     editToken: string;
     message: string;
+    storage?: 'google-sheet';
   } | null>(null);
 
   const [isEditingExisting, setIsEditingExisting] = useState(false);
@@ -47,11 +49,16 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
 
   // Check if guest previously submitted in this browser session
   useEffect(() => {
-    const saved = localStorage.getItem(`little_racer_rsvp_${invitation.slug}`);
+    const storageKey = `little_racer_rsvp_${invitation.slug}`;
+    const saved = localStorage.getItem(storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.id && parsed.editToken) {
+        if (usesGoogleSheetRsvp && parsed.storage !== 'google-sheet') {
+          localStorage.removeItem(storageKey);
+          return;
+        }
+        if (parsed.id && (parsed.editToken || parsed.storage === 'google-sheet')) {
           setConfirmedData(parsed);
           setGuestName(parsed.guestName);
           setAttending(parsed.attending);
@@ -59,7 +66,7 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
         }
       } catch {}
     }
-  }, [invitation.slug]);
+  }, [invitation.slug, usesGoogleSheetRsvp]);
 
   const triggerConfetti = () => {
     try {
@@ -138,14 +145,15 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
           dietaryNotes,
         });
 
-        if (res.success && res.rsvp) {
+        if (res.success) {
           const conf = {
-            id: res.rsvp.id,
-            guestName: res.rsvp.guestName,
-            attending: res.rsvp.attending,
-            attendeeCount: res.rsvp.attendeeCount,
-            editToken: res.rsvp.editToken,
+            id: res.rsvp?.id || `sheet-${Date.now()}`,
+            guestName: res.rsvp?.guestName || guestName.trim(),
+            attending: res.rsvp?.attending ?? attending,
+            attendeeCount: res.rsvp?.attendeeCount ?? (attending ? attendeeCount : 0),
+            editToken: res.rsvp?.editToken || '',
             message: res.message || rsvpConfig.customConfirmationMessage,
+            ...(usesGoogleSheetRsvp ? { storage: 'google-sheet' as const } : {}),
           };
           setConfirmedData(conf);
           localStorage.setItem(`little_racer_rsvp_${invitation.slug}`, JSON.stringify(conf));
@@ -247,13 +255,17 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
               </div>
 
               <div className="flex items-center justify-center gap-3">
-                <button
-                  onClick={handleStartEdit}
-                  className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-2 border border-slate-700 cursor-pointer"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>Update My Response</span>
-                </button>
+                {confirmedData.editToken ? (
+                  <button
+                    onClick={handleStartEdit}
+                    className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors flex items-center gap-2 border border-slate-700 cursor-pointer"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>Update My Response</span>
+                  </button>
+                ) : (
+                  <p className="text-xs text-slate-400">Need to change your RSVP? Please contact the host.</p>
+                )}
               </div>
             </div>
           </CanvaScrollReveal>

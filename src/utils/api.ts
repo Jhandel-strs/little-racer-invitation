@@ -1,6 +1,7 @@
 import type { InvitationData, RSVPResponse } from '../types/invitation';
 
 const TOKEN_KEY = 'little_racer_admin_token';
+const RSVP_SCRIPT_URL = import.meta.env.VITE_RSVP_SCRIPT_URL?.trim();
 
 async function readApiJson<T>(res: Response): Promise<T> {
   const body = await res.text();
@@ -79,6 +80,24 @@ export async function submitRsvp(
     dietaryNotes?: string;
   }
 ): Promise<{ success: boolean; message: string; rsvp?: RSVPResponse; error?: string; existingRsvpId?: string; editToken?: string }> {
+  if (RSVP_SCRIPT_URL) {
+    await fetch(RSVP_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ ...payload, slug }),
+    });
+
+    return {
+      success: true,
+      message: 'Your RSVP was sent to the host. Thank you!',
+    };
+  }
+
+  if (import.meta.env.PROD) {
+    throw new Error('RSVPs are not connected yet. Please contact the host.');
+  }
+
   const res = await fetch(`/api/rsvp/${slug}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
