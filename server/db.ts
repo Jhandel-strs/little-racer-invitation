@@ -60,9 +60,9 @@ function initializeRenderStorage() {
   if (fs.existsSync(markerFile)) return;
 
   const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim();
-  if (!bootstrapPassword || bootstrapPassword.length < 12) {
+  if (!bootstrapPassword || bootstrapPassword.length < 4) {
     throw new Error(
-      'Set ADMIN_BOOTSTRAP_PASSWORD to a unique password of at least 12 characters before the first Render start.'
+      'Set ADMIN_BOOTSTRAP_PASSWORD to a password of at least 4 characters before the first Render start.'
     );
   }
 

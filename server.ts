@@ -3,13 +3,46 @@ import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
 import { db, verifyPassword, UPLOADS_DIR } from './server/db.js';
-import type { RSVPResponse } from './src/types/invitation';
+import type { GuestWish, RSVPResponse } from './src/types/invitation';
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const isProd = process.env.NODE_ENV === 'production';
-const rsvpSheetUrl = process.env.VITE_RSVP_SCRIPT_URL?.trim();
+const rsvpSheetUrl = process.env.RSVP_SCRIPT_URL?.trim();
 const rsvpSheetReadKey = process.env.RSVP_SHEET_READ_KEY?.trim();
+
+function requireSharedGuestStorage(res: Response): boolean {
+  if (!isProd || (rsvpSheetUrl && rsvpSheetReadKey)) return false;
+  res.status(503).json({
+    error: 'Shared guest storage is not connected. Set the Apps Script URL and RSVP read key before collecting RSVPs or birthday wishes.',
+  });
+  return true;
+}
+
+async function requestRsvpSheet<T>(payload: Record<string, unknown>): Promise<T & { success: boolean }> {
+  if (!rsvpSheetUrl) {
+    throw new Error('The RSVP and guestbook storage is not connected.');
+  }
+
+  const response = await fetch(rsvpSheetUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20000),
+  });
+  const body = await response.text();
+  let result: { success?: boolean; error?: string } & T;
+  try {
+    result = JSON.parse(body);
+  } catch {
+    throw new Error('The guestbook storage did not return a valid response.');
+  }
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || `Guestbook storage failed (HTTP ${response.status}).`);
+  }
+  return result as T & { success: boolean };
+}
 
 // Body parsing with 10mb limit for potential JSON data
 app.use(express.json({ limit: '10mb' }));
@@ -85,25 +118,57 @@ function checkRateLimit(req: Request, res: Response, next: NextFunction) {
 // AUTH ROUTES
 // ==========================================
 
+const loginFailures = new Map<string, { count: number; resetAt: number }>();
+function isLoginRateLimited(req: Request, res: Response): boolean {
+  const key = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const failures = loginFailures.get(key);
+  if (failures && now >= failures.resetAt) loginFailures.delete(key);
+
+  const current = loginFailures.get(key);
+  if (current && current.count >= 5) {
+    res.status(429).json({ error: 'Too many sign-in attempts. Please wait 15 minutes and try again.' });
+    return true;
+  }
+  return false;
+}
+
+function recordLoginFailure(req: Request): void {
+  const key = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const current = loginFailures.get(key);
+  if (!current || now >= current.resetAt) {
+    loginFailures.set(key, { count: 1, resetAt: now + 15 * 60 * 1000 });
+    return;
+  }
+  current.count += 1;
+}
+
 app.post('/api/auth/login', (req: Request, res: Response) => {
+  if (isLoginRateLimited(req, res)) return;
+
   const { username, password } = req.body;
   if (!username || !password) {
+    recordLoginFailure(req);
     res.status(400).json({ error: 'Username and password are required' });
     return;
   }
 
   const admin = db.getAdmin();
   if (username.toLowerCase().trim() !== admin.username.toLowerCase().trim()) {
+    recordLoginFailure(req);
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
 
   const isValid = verifyPassword(password, admin.passwordHash, admin.salt);
   if (!isValid) {
+    recordLoginFailure(req);
     res.status(401).json({ error: 'Invalid credentials' });
     return;
   }
 
+  loginFailures.delete(req.ip || req.socket.remoteAddress || 'unknown');
   const token = db.createSession(admin.id);
   res.json({
     token,
@@ -164,7 +229,7 @@ app.post('/api/auth/change-password', requireAdmin, (req: Request, res: Response
 // ==========================================
 
 // Public invitation fetch (only returns published snapshot!)
-app.get('/api/invitation/:slug', (req: Request, res: Response) => {
+app.get('/api/invitation/:slug', async (req: Request, res: Response) => {
   const { slug } = req.params;
   const published = db.getPublishedInvitation(slug);
 
@@ -182,17 +247,45 @@ app.get('/api/invitation/:slug', (req: Request, res: Response) => {
     return;
   }
 
-  res.json({
-    status: 'published',
-    invitation: published,
-  });
+  let invitation = published;
+  if (rsvpSheetUrl && rsvpSheetReadKey) {
+    try {
+      const sheetWishes = await getSheetWishes();
+      invitation = {
+        ...published,
+        wishes: mergeWishes(published.wishes || [], sheetWishes),
+      };
+    } catch (error) {
+      console.error('Could not load birthday wishes from the RSVP sheet:', error);
+    }
+  }
+
+  res.json({ status: 'published', invitation });
 });
 
 // Admin get current invitation (both draft and published snapshot)
-app.get('/api/admin/invitation', requireAdmin, (_req: Request, res: Response) => {
-  const draft = db.getDraftInvitation();
-  const published = db.getPublishedInvitation();
-  const rsvps = db.getAllRSVPs();
+app.get('/api/admin/invitation', requireAdmin, async (_req: Request, res: Response) => {
+  if (requireSharedGuestStorage(res)) return;
+
+  let draft = db.getDraftInvitation();
+  let published = db.getPublishedInvitation();
+  let rsvps = db.getAllRSVPs();
+
+  if (rsvpSheetUrl && rsvpSheetReadKey) {
+    try {
+      const [sheetRsvps, sheetWishes] = await Promise.all([getAdminRsvps(), getSheetWishes()]);
+      rsvps = sheetRsvps.rsvps;
+      const mergedWishes = mergeWishes(draft.wishes || [], sheetWishes);
+      draft = { ...draft, wishes: mergedWishes };
+      if (published) published = { ...published, wishes: mergedWishes };
+    } catch (error) {
+      console.error('Could not load guest activity from the RSVP sheet:', error);
+      res.status(502).json({
+        error: error instanceof Error ? error.message : 'Could not load guest activity from shared storage.',
+      });
+      return;
+    }
+  }
 
   const totalResponses = rsvps.length;
   const attendingCount = rsvps.filter((r) => r.attending).length;
@@ -266,7 +359,9 @@ app.post('/api/admin/upload', requireAdmin, upload.single('file'), (req: Request
 // ==========================================
 
 // Post a guest birthday wish
-app.post('/api/wishes/:slug', checkRateLimit, (req: Request, res: Response) => {
+app.post('/api/wishes/:slug', checkRateLimit, async (req: Request, res: Response) => {
+  if (requireSharedGuestStorage(res)) return;
+
   const { slug } = req.params;
   const invitation = db.getPublishedInvitation(slug);
   if (!invitation) {
@@ -280,11 +375,31 @@ app.post('/api/wishes/:slug', checkRateLimit, (req: Request, res: Response) => {
     return;
   }
 
-  const wish = db.addGuestWish({
-    guestName,
-    message,
-    badgeEmoji: badgeEmoji || '🏁',
-  });
+  let wish: GuestWish;
+  if (rsvpSheetUrl) {
+    try {
+      const result = await requestRsvpSheet<{ wish?: GuestWish }>({
+        action: 'wish',
+        slug,
+        guestName: guestName.trim(),
+        message: message.trim(),
+        badgeEmoji: badgeEmoji || '🏁',
+      });
+      if (!result.wish) throw new Error('The birthday wish was not saved.');
+      wish = result.wish;
+    } catch (error) {
+      res.status(502).json({
+        error: error instanceof Error ? error.message : 'The birthday wish could not be saved.',
+      });
+      return;
+    }
+  } else {
+    wish = db.addGuestWish({
+      guestName,
+      message,
+      badgeEmoji: badgeEmoji || '🏁',
+    });
+  }
 
   res.status(201).json({ success: true, wish });
 });
@@ -335,7 +450,9 @@ app.get('/api/calendar/:slug/invite.ics', (req: Request, res: Response) => {
 // ==========================================
 
 // Public guest RSVP submission
-app.post('/api/rsvp/:slug', checkRateLimit, (req: Request, res: Response) => {
+app.post('/api/rsvp/:slug', checkRateLimit, async (req: Request, res: Response) => {
+  if (requireSharedGuestStorage(res)) return;
+
   const { slug } = req.params;
   const invitation = db.getPublishedInvitation(slug);
 
@@ -374,6 +491,37 @@ app.post('/api/rsvp/:slug', checkRateLimit, (req: Request, res: Response) => {
       });
       return;
     }
+  }
+
+  if (rsvpSheetUrl) {
+    try {
+      const result = await requestRsvpSheet<{ message?: string; rsvp?: Partial<RSVPResponse> }>({
+        action: 'rsvp',
+        slug,
+        guestName: guestName.trim(),
+        attending,
+        attendeeCount: parsedCount,
+      });
+      if (!result.rsvp?.id) throw new Error('The RSVP was not saved.');
+      res.status(201).json({
+        success: true,
+        message: result.message || invitation.rsvpSettings.customConfirmationMessage || 'Thank you for your RSVP!',
+        rsvp: {
+          ...result.rsvp,
+          invitationId: invitation.id,
+          guestName: result.rsvp.guestName || guestName.trim(),
+          attending: result.rsvp.attending ?? attending,
+          attendeeCount: result.rsvp.attendeeCount ?? parsedCount,
+          submittedAt: result.rsvp.submittedAt || new Date().toISOString(),
+          editToken: result.rsvp.editToken || '',
+        },
+      });
+    } catch (error) {
+      res.status(502).json({
+        error: error instanceof Error ? error.message : 'Your RSVP could not be saved.',
+      });
+    }
+    return;
   }
 
   // Prevent accidental rapid duplicate submission with identical name
@@ -454,6 +602,9 @@ app.put('/api/rsvp/:slug/:id', checkRateLimit, (req: Request, res: Response) => 
 });
 
 async function getAdminRsvps() {
+  if (isProd && (!rsvpSheetUrl || !rsvpSheetReadKey)) {
+    throw new Error('Shared guest storage is not connected. Set the Apps Script URL and RSVP read key before viewing responses.');
+  }
   if (!rsvpSheetUrl) {
     return { rsvps: db.getAllRSVPs(), source: 'local' as const };
   }
@@ -461,23 +612,28 @@ async function getAdminRsvps() {
     throw new Error('Set RSVP_SHEET_READ_KEY on the web service and RSVP_READ_KEY in Apps Script to show sheet responses.');
   }
 
-  const response = await fetch(rsvpSheetUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: 'list', key: rsvpSheetReadKey }),
-    signal: AbortSignal.timeout(20000),
+  const result = await requestRsvpSheet<{ rsvps?: RSVPResponse[] }>({
+    action: 'list',
+    key: rsvpSheetReadKey,
   });
-  const body = await response.text();
-  let result: { success?: boolean; error?: string; rsvps?: RSVPResponse[] };
-  try {
-    result = JSON.parse(body);
-  } catch {
-    throw new Error('The RSVP sheet did not return JSON. Check that the latest Apps Script version is deployed.');
-  }
-  if (!response.ok || !result.success || !Array.isArray(result.rsvps)) {
-    throw new Error(result.error || `Could not load RSVP sheet (HTTP ${response.status}).`);
-  }
+  if (!Array.isArray(result.rsvps)) throw new Error('The RSVP sheet did not include response data.');
   return { rsvps: result.rsvps, source: 'google-sheet' as const };
+}
+
+async function getSheetWishes(): Promise<GuestWish[]> {
+  if (!rsvpSheetUrl || !rsvpSheetReadKey) return [];
+  const result = await requestRsvpSheet<{ wishes?: GuestWish[] }>({
+    action: 'list-wishes',
+    key: rsvpSheetReadKey,
+  });
+  if (!Array.isArray(result.wishes)) throw new Error('The guestbook sheet did not include wish data.');
+  return result.wishes;
+}
+
+function mergeWishes(localWishes: GuestWish[], sheetWishes: GuestWish[]): GuestWish[] {
+  const byId = new Map<string, GuestWish>();
+  for (const wish of [...localWishes, ...sheetWishes]) byId.set(wish.id, wish);
+  return [...byId.values()].sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp));
 }
 
 function getRsvpMetrics(rsvps: RSVPResponse[]) {

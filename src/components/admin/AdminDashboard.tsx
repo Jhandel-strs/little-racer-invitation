@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
+  Bell,
+  Cake,
   Flag,
   Save,
   Globe,
@@ -24,6 +26,7 @@ import {
   XCircle,
   ExternalLink,
   HelpCircle,
+  MessageSquare,
 } from 'lucide-react';
 import type { InvitationData, RSVPResponse, ScheduleItem, GalleryItem, FaqItem } from '../../types/invitation';
 import {
@@ -53,6 +56,9 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   const [rsvpMetrics, setRsvpMetrics] = useState<any>(null);
   const [rsvpSource, setRsvpSource] = useState<'local' | 'google-sheet' | null>(null);
   const [refreshingRsvps, setRefreshingRsvps] = useState(false);
+  const [activityNotice, setActivityNotice] = useState<string | null>(null);
+  const seenActivityIds = useRef<Set<string> | null>(null);
+  const activityNoticeTimer = useRef<number | null>(null);
 
   const [activeTab, setActiveTab] = useState<
     'overview' | 'content' | 'media' | 'canva' | 'faqs' | 'venue' | 'rsvps'
@@ -72,7 +78,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   const [rsvpSearch, setRsvpSearch] = useState('');
   const [rsvpFilter, setRsvpFilter] = useState<'all' | 'attending' | 'declined'>('all');
 
-  const loadData = async () => {
+  const loadData = useCallback(async (backgroundRefresh = false) => {
     try {
       const data = await fetchAdminInvitation();
       setDraft(data.draft);
@@ -80,28 +86,65 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
       setStats(data.stats);
 
       const rsvpData = await fetchAdminRsvps();
+      const wishes = data.published?.wishes ?? data.draft.wishes ?? [];
+      const currentActivityIds = new Set([
+        ...rsvpData.rsvps.map((rsvp) => `rsvp:${rsvp.id}`),
+        ...wishes.map((wish) => `wish:${wish.id}`),
+      ]);
+
+      if (backgroundRefresh && seenActivityIds.current) {
+        const newRsvp = rsvpData.rsvps.find(
+          (rsvp) => !seenActivityIds.current?.has(`rsvp:${rsvp.id}`)
+        );
+        const newWish = wishes.find(
+          (wish) => !seenActivityIds.current?.has(`wish:${wish.id}`)
+        );
+
+        if (newRsvp || newWish) {
+          const notice = newRsvp
+            ? `${newRsvp.guestName} ${newRsvp.attending ? `RSVP’d for ${newRsvp.attendeeCount} ${newRsvp.attendeeCount === 1 ? 'guest' : 'guests'}` : 'can’t make it'}.`
+            : `${newWish?.guestName} left a birthday wish.`;
+          setActivityNotice(notice);
+          if (activityNoticeTimer.current !== null) {
+            window.clearTimeout(activityNoticeTimer.current);
+          }
+          activityNoticeTimer.current = window.setTimeout(() => {
+            setActivityNotice(null);
+            activityNoticeTimer.current = null;
+          }, 7000);
+        }
+      }
+
+      seenActivityIds.current = currentActivityIds;
       setRsvps(rsvpData.rsvps);
       setRsvpMetrics(rsvpData.metrics);
       setRsvpSource(rsvpData.source);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to load admin data.');
+      if (!backgroundRefresh) {
+        setErrorMsg(err.message || 'Failed to load admin data.');
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    void loadData();
+    const refreshTimer = window.setInterval(() => {
+      void loadData(true);
+    }, 30_000);
+
+    return () => {
+      window.clearInterval(refreshTimer);
+      if (activityNoticeTimer.current !== null) {
+        window.clearTimeout(activityNoticeTimer.current);
+      }
+    };
+  }, [loadData]);
 
   const handleRefreshRsvps = async () => {
     setRefreshingRsvps(true);
     setErrorMsg(null);
     try {
-      const data = await fetchAdminRsvps();
-      setRsvps(data.rsvps);
-      setRsvpMetrics(data.metrics);
-      setRsvpSource(data.source);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to refresh RSVP responses.');
+      await loadData();
     } finally {
       setRefreshingRsvps(false);
     }
@@ -331,6 +374,20 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
     if (rsvpFilter === 'declined') return !r.attending;
     return true;
   });
+
+  const wishes = published?.wishes ?? draft?.wishes ?? [];
+  const recentRsvps = [...rsvps]
+    .sort((a, b) => Date.parse(b.submittedAt) - Date.parse(a.submittedAt))
+    .slice(0, 5);
+  const recentWishes = [...wishes]
+    .sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp))
+    .slice(0, 5);
+  const formatActivityTime = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? 'Recently'
+      : date.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
 
   if (!draft) {
     return (
@@ -614,7 +671,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
               </div>
 
               {/* RSVP Telemetry Counter Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
                 <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
                   <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                     Total Responses
@@ -651,7 +708,120 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                     {rsvpMetrics?.declinedCount ?? rsvps.filter((r) => !r.attending).length}
                   </div>
                 </div>
+
+                <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Birthday wishes
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black font-display text-sky-400 mt-1 tabular-nums">
+                    {wishes.length}
+                  </div>
+                </div>
               </div>
+
+              {/* Live RSVP and birthday-wish activity */}
+              <section className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-slate-950 border border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center shrink-0">
+                      <Bell className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-white">Pit board activity</h3>
+                      <p className="text-xs text-slate-400 mt-0.5">Recent replies and birthday wishes from your guests.</p>
+                    </div>
+                  </div>
+                  <div className="inline-flex items-center gap-2 self-start sm:self-auto px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-[11px] text-slate-400">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Updates every 30 seconds
+                  </div>
+                </div>
+
+                {activityNotice && (
+                  <div role="status" className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-500/30 bg-emerald-950/50 px-3 py-2.5 text-sm text-emerald-200">
+                    <Bell className="w-4 h-4 mt-0.5 shrink-0" />
+                    <span className="flex-1">{activityNotice}</span>
+                    <button
+                      type="button"
+                      onClick={() => setActivityNotice(null)}
+                      className="text-emerald-300 hover:text-white text-xs font-bold"
+                      aria-label="Dismiss new activity notification"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 mt-5">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                      <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
+                        <Users className="w-4 h-4 text-rose-400" /> RSVP replies
+                      </h4>
+                      <span className="text-[11px] text-slate-500">{rsvps.length} total</span>
+                    </div>
+                    {recentRsvps.length ? (
+                      <ul className="divide-y divide-slate-900">
+                        {recentRsvps.map((rsvp) => (
+                          <li key={rsvp.id} className="py-3 flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-white truncate">{rsvp.guestName}</div>
+                              <div className="text-xs text-slate-400 mt-0.5">
+                                {rsvp.attending
+                                  ? `Attending · ${rsvp.attendeeCount} ${rsvp.attendeeCount === 1 ? 'guest' : 'guests'}`
+                                  : 'Unable to attend'}
+                                {rsvp.guestNames?.length ? ` · ${rsvp.guestNames.join(', ')}` : ''}
+                              </div>
+                              <div className="text-[11px] text-slate-500 mt-1">{formatActivityTime(rsvp.submittedAt)}</div>
+                            </div>
+                            <span className={`shrink-0 px-2 py-1 rounded-full text-[10px] font-bold ${rsvp.attending ? 'bg-emerald-500/10 text-emerald-300' : 'bg-slate-800 text-slate-400'}`}>
+                              {rsvp.attending ? 'Coming' : 'Declined'}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="py-5 text-center text-xs text-slate-500">No RSVP replies yet.</p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('rsvps')}
+                      className="mt-2 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors"
+                    >
+                      View all RSVPs →
+                    </button>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                      <h4 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
+                        <Cake className="w-4 h-4 text-sky-400" /> Birthday wishes
+                      </h4>
+                      <span className="text-[11px] text-slate-500">{wishes.length} total</span>
+                    </div>
+                    {recentWishes.length ? (
+                      <ul className="divide-y divide-slate-900">
+                        {recentWishes.map((wish) => (
+                          <li key={wish.id} className="py-3 flex items-start gap-3">
+                            <span className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center shrink-0 text-base" aria-hidden="true">
+                              {wish.badgeEmoji || <MessageSquare className="w-4 h-4 text-sky-400" />}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                <span className="text-sm font-semibold text-white">{wish.guestName}</span>
+                                <span className="text-[11px] text-slate-500">{formatActivityTime(wish.timestamp)}</span>
+                              </div>
+                              <p className="text-xs text-slate-300 mt-1 break-words">{wish.message}</p>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="py-5 text-center text-xs text-slate-500">No birthday wishes yet.</p>
+                    )}
+                  </div>
+                </div>
+              </section>
 
               {/* Celebrant Quick Summary */}
               <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-center gap-6">

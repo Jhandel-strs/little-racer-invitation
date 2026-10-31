@@ -20,7 +20,7 @@ services:
         value: /tmp/little-racer-data/uploads
       - key: ADMIN_BOOTSTRAP_PASSWORD
         sync: false
-      - key: VITE_RSVP_SCRIPT_URL
+      - key: RSVP_SCRIPT_URL
         sync: false
       - key: RSVP_SHEET_READ_KEY
         sync: false

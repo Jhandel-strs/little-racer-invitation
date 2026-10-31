@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MessageSquare, Send, Sparkles } from 'lucide-react';
+import { AlertCircle, MessageSquare, Send, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import type { InvitationData, GuestWish } from '../../types/invitation';
 import { CanvaScrollReveal } from './CanvaScrollReveal';
@@ -17,6 +17,7 @@ export const SectionGuestWishes: React.FC<Props> = ({ invitation }) => {
   const [badgeEmoji, setBadgeEmoji] = useState('🏁');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const canvaAnim = invitation.theme?.canvaAnimationEnabled ?? true;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,6 +25,7 @@ export const SectionGuestWishes: React.FC<Props> = ({ invitation }) => {
     if (!guestName.trim() || !message.trim()) return;
 
     setSubmitting(true);
+    setErrorMsg(null);
     try {
       const res = await fetch(`/api/wishes/${invitation.slug}`, {
         method: 'POST',
@@ -35,21 +37,24 @@ export const SectionGuestWishes: React.FC<Props> = ({ invitation }) => {
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.wish) {
-        setWishes((prev) => [data.wish, ...prev]);
-        setGuestName('');
-        setMessage('');
-        setSuccess(true);
-        setTimeout(() => setSuccess(false), 4000);
-        confetti({
-          particleCount: 65,
-          spread: 70,
-          origin: { y: 0.7 },
-        });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.wish) {
+        setErrorMsg(data.error || 'Your birthday wish could not be sent. Please try again.');
+        return;
       }
+
+      setWishes((prev) => [data.wish, ...prev]);
+      setGuestName('');
+      setMessage('');
+      setSuccess(true);
+      window.setTimeout(() => setSuccess(false), 4000);
+      confetti({
+        particleCount: 65,
+        spread: 70,
+        origin: { y: 0.7 },
+      });
     } catch {
-      // Gracefully handle
+      setErrorMsg('The guest book is temporarily unavailable. Please try again in a moment.');
     } finally {
       setSubmitting(false);
     }
@@ -77,14 +82,25 @@ export const SectionGuestWishes: React.FC<Props> = ({ invitation }) => {
               Leave a warm cheer, memory, or sweet birthday message for our little champion!
             </p>
           </CanvaScrollReveal>
+          <div className="inline-flex items-center gap-2 mt-4 px-3 py-1.5 rounded-full bg-slate-950 border border-slate-800 text-xs text-slate-300">
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+            <span><strong className="text-white tabular-nums">{wishes.length}</strong> {wishes.length === 1 ? 'birthday wish' : 'birthday wishes'} received</span>
+          </div>
         </div>
 
         {/* Wish submission form */}
         <CanvaScrollReveal direction="left" delay={200} enabled={canvaAnim}>
           <div className="p-6 sm:p-8 rounded-3xl bg-slate-950 border border-slate-800 mb-10 shadow-2xl">
             {success && (
-              <div className="mb-4 p-3 rounded-xl bg-emerald-950 border border-emerald-500/50 text-emerald-200 text-xs font-bold text-center">
+              <div role="status" className="mb-4 p-3 rounded-xl bg-emerald-950 border border-emerald-500/50 text-emerald-200 text-xs font-bold text-center">
                 🏁 Your cheer was added to the pit board! Thank you!
+              </div>
+            )}
+
+            {errorMsg && (
+              <div role="alert" className="mb-4 p-3 rounded-xl bg-rose-950/70 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{errorMsg}</span>
               </div>
             )}
 

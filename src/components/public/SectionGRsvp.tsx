@@ -10,7 +10,6 @@ interface Props {
 }
 
 export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
-  const usesGoogleSheetRsvp = Boolean(import.meta.env.VITE_RSVP_SCRIPT_URL?.trim());
   const rsvpConfig = invitation.rsvpSettings || {
     enabled: true,
     deadline: '2026-11-01',
@@ -24,13 +23,8 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
   };
 
   const [guestName, setGuestName] = useState('');
-  const [attending, setAttending] = useState<boolean | null>(true);
+  const attending = true;
   const [attendeeCount, setAttendeeCount] = useState<number>(1);
-  const [guestNames, setGuestNames] = useState<string>('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [message, setMessage] = useState('');
-  const [dietaryNotes, setDietaryNotes] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -41,7 +35,6 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
     attendeeCount: number;
     editToken: string;
     message: string;
-    storage?: 'google-sheet';
   } | null>(null);
 
   const [isEditingExisting, setIsEditingExisting] = useState(false);
@@ -54,19 +47,14 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (usesGoogleSheetRsvp && parsed.storage !== 'google-sheet') {
-          localStorage.removeItem(storageKey);
-          return;
-        }
-        if (parsed.id && (parsed.editToken || parsed.storage === 'google-sheet')) {
+        if (parsed.id && parsed.editToken) {
           setConfirmedData(parsed);
           setGuestName(parsed.guestName);
-          setAttending(parsed.attending);
           setAttendeeCount(parsed.attendeeCount || 1);
         }
       } catch {}
     }
-  }, [invitation.slug, usesGoogleSheetRsvp]);
+  }, [invitation.slug]);
 
   const triggerConfetti = () => {
     try {
@@ -88,30 +76,15 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
       return;
     }
 
-    if (attending === null) {
-      setErrorMsg('Please indicate whether you will be attending.');
-      return;
-    }
-
     setSubmitting(true);
 
     try {
-      const splitNames = guestNames
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-
       if (isEditingExisting && confirmedData?.id && confirmedData?.editToken) {
         // Updating existing RSVP
         const res = await updateGuestRsvp(invitation.slug, confirmedData.id, {
           editToken: confirmedData.editToken,
-          attending,
-          attendeeCount: attending ? attendeeCount : 0,
-          guestNames: splitNames,
-          email,
-          phone,
-          message,
-          dietaryNotes,
+          attending: true,
+          attendeeCount,
         });
 
         if (res.success && res.rsvp) {
@@ -136,24 +109,18 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
         // New submission
         const res = await submitRsvp(invitation.slug, {
           guestName: guestName.trim(),
-          attending,
-          attendeeCount: attending ? attendeeCount : 0,
-          guestNames: splitNames,
-          email,
-          phone,
-          message,
-          dietaryNotes,
+          attending: true,
+          attendeeCount,
         });
 
         if (res.success) {
           const conf = {
             id: res.rsvp?.id || `sheet-${Date.now()}`,
             guestName: res.rsvp?.guestName || guestName.trim(),
-            attending: res.rsvp?.attending ?? attending,
-            attendeeCount: res.rsvp?.attendeeCount ?? (attending ? attendeeCount : 0),
+            attending: res.rsvp?.attending ?? true,
+            attendeeCount: res.rsvp?.attendeeCount ?? attendeeCount,
             editToken: res.rsvp?.editToken || '',
             message: res.message || rsvpConfig.customConfirmationMessage,
-            ...(usesGoogleSheetRsvp ? { storage: 'google-sheet' as const } : {}),
           };
           setConfirmedData(conf);
           localStorage.setItem(`little_racer_rsvp_${invitation.slug}`, JSON.stringify(conf));
@@ -198,7 +165,7 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
 
           <CanvaScrollReveal direction="left" delay={250} enabled={canvaAnim}>
             <p className="text-sm text-slate-300 mt-2">
-              Please let us know if you can make it by{' '}
+              Add your name and total number of guests by{' '}
               <strong className="text-rose-400">{rsvpConfig.deadline || 'Nov 1, 2026'}</strong>.
             </p>
           </CanvaScrollReveal>
@@ -311,180 +278,52 @@ export const SectionGRsvp: React.FC<Props> = ({ invitation }) => {
                 />
               </div>
 
-              {/* Attendance Choice Buttons */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                  WILL YOU BE ATTENDING? <span className="text-rose-500">*</span>
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setAttending(true)}
-                    className={`p-4 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                      attending === true
-                        ? 'bg-rose-950/50 border-rose-500 text-white shadow-[0_0_15px_rgba(225,29,72,0.3)] ring-1 ring-rose-500'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        attending === true
-                          ? 'border-rose-500 bg-rose-600 text-white'
-                          : 'border-slate-700'
-                      }`}
-                    >
-                      {attending === true && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
-                    <div>
-                      <div className="text-xs font-black uppercase tracking-wider text-white">
-                        YES, I'LL BE THERE! 🏁
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Ready to celebrate year ONE!</div>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setAttending(false)}
-                    className={`p-4 rounded-2xl border text-left flex items-center gap-3 transition-all cursor-pointer ${
-                      attending === false
-                        ? 'bg-slate-800 border-slate-500 text-white ring-1 ring-slate-500'
-                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                    }`}
-                  >
-                    <div
-                      className={`w-5 h-5 rounded-full flex items-center justify-center border ${
-                        attending === false
-                          ? 'border-slate-400 bg-slate-600 text-white'
-                          : 'border-slate-700'
-                      }`}
-                    >
-                      {attending === false && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
-                    <div>
-                      <div className="text-xs font-black uppercase tracking-wider text-white">
-                        SORRY, CAN'T MAKE IT 🛑
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Cheering from afar!</div>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Number of Attendees (Only if Attending) */}
-              {attending && (
-                <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold uppercase tracking-wider text-slate-300">
-                        TOTAL ATTENDEES IN YOUR PARTY
-                      </div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">
-                        Max {rsvpConfig.maxAttendeesPerRsvp || 6} guests per RSVP
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setAttendeeCount((prev) => Math.max(1, prev - 1))}
-                        className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-lg flex items-center justify-center transition-colors cursor-pointer border border-slate-700"
-                      >
-                        -
-                      </button>
-                      <span className="w-8 text-center text-lg font-black text-rose-400 tabular-nums font-display">
-                        {attendeeCount}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setAttendeeCount((prev) =>
-                            Math.min(rsvpConfig.maxAttendeesPerRsvp || 6, prev + 1)
-                          )
-                        }
-                        className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-black text-lg flex items-center justify-center transition-colors cursor-pointer border border-slate-700"
-                      >
-                        +
-                      </button>
-                    </div>
+              {/* Party size */}
+              <div className="p-4 rounded-2xl bg-slate-900/90 border border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <label htmlFor="rsvp-party-size" className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+                      HOW MANY PEOPLE ARE COMING?
+                    </label>
+                    <p className="text-[11px] text-slate-400 mt-1">Include yourself in the total.</p>
                   </div>
 
-                  {attendeeCount > 1 && (
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                        Names of additional guests / children (optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={guestNames}
-                        onChange={(e) => setGuestNames(e.target.value)}
-                        placeholder="e.g. Jenny (Age 3), Dave"
-                        className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 outline-none focus:border-rose-500"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Contact Details (Optional) */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                    EMAIL ADDRESS (FOR UPDATES)
-                  </label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="racer@example.com"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 focus:border-rose-500 text-white placeholder-slate-500 text-sm outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                    PHONE NUMBER (OPTIONAL)
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="(555) 123-4567"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 focus:border-rose-500 text-white placeholder-slate-500 text-sm outline-none"
-                  />
+                  <div className="flex items-center gap-3 self-start sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={() => setAttendeeCount((prev) => Math.max(1, prev - 1))}
+                      disabled={attendeeCount <= 1}
+                      aria-label="Remove one person"
+                      className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-black text-lg flex items-center justify-center transition-colors border border-slate-700"
+                    >
+                      -
+                    </button>
+                    <input
+                      id="rsvp-party-size"
+                      type="number"
+                      min="1"
+                      max={rsvpConfig.maxAttendeesPerRsvp || 6}
+                      value={attendeeCount}
+                      onChange={(e) => {
+                        const value = Number.parseInt(e.target.value, 10);
+                        const maximum = rsvpConfig.maxAttendeesPerRsvp || 6;
+                        setAttendeeCount(Number.isFinite(value) ? Math.min(maximum, Math.max(1, value)) : 1);
+                      }}
+                      className="w-16 text-center text-xl font-black text-rose-400 tabular-nums font-display bg-transparent outline-none"
+                      aria-label="Number of people attending"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAttendeeCount((prev) => Math.min(rsvpConfig.maxAttendeesPerRsvp || 6, prev + 1))}
+                      disabled={attendeeCount >= (rsvpConfig.maxAttendeesPerRsvp || 6)}
+                      aria-label="Add one person"
+                      className="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-white font-black text-lg flex items-center justify-center transition-colors border border-slate-700"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              {/* Dietary notes */}
-              {attending && (
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                    DIETARY RESTRICTIONS OR ALLERGIES
-                  </label>
-                  <input
-                    type="text"
-                    value={dietaryNotes}
-                    onChange={(e) => setDietaryNotes(e.target.value)}
-                    placeholder="e.g. Vegetarian, Nut Allergy, Gluten-Free"
-                    className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 focus:border-rose-500 text-white placeholder-slate-500 text-sm outline-none"
-                  />
-                </div>
-              )}
-
-              {/* Birthday Greeting / Note */}
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-2">
-                  BIRTHDAY WISH FOR {invitation.celebrantName || 'LEO'} (OPTIONAL)
-                </label>
-                <textarea
-                  rows={3}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Leave a sweet cheer or memory for our little racer!"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-900 border border-slate-800 focus:border-rose-500 text-white placeholder-slate-500 text-sm outline-none resize-none"
-                />
-              </div>
-
               {/* Submit Button */}
               <button
                 type="submit"
