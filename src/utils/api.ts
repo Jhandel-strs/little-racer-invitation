@@ -2,6 +2,23 @@ import type { InvitationData, RSVPResponse } from '../types/invitation';
 
 const TOKEN_KEY = 'little_racer_admin_token';
 
+async function readApiJson<T>(res: Response): Promise<T> {
+  const body = await res.text();
+
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json') || res.status === 404) {
+      throw new Error(
+        'The site loaded, but its API is unavailable. In Render, deploy this project as a Web Service using render.yaml. A Static Site cannot run the Express API.'
+      );
+    }
+
+    throw new Error(`The server returned an invalid response (HTTP ${res.status}). Please refresh and try again.`);
+  }
+}
+
 export function getStoredToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -32,14 +49,21 @@ export async function fetchPublicInvitation(slug: string): Promise<{
   error?: string;
 }> {
   const res = await fetch(`/api/invitation/${slug}`);
-  const data = await res.json();
+  const data = await readApiJson<{
+    status?: 'published' | 'draft';
+    invitation?: InvitationData;
+    error?: string;
+  }>(res);
   if (!res.ok) {
     return {
       status: data.status || 'draft',
       error: data.error || 'Failed to load invitation.',
     };
   }
-  return data;
+  if (data.status !== 'published' && data.status !== 'draft') {
+    throw new Error('The server response did not include invitation status. Please refresh and try again.');
+  }
+  return { ...data, status: data.status };
 }
 
 export async function submitRsvp(
@@ -60,7 +84,14 @@ export async function submitRsvp(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
+  const data = await readApiJson<{
+    success?: boolean;
+    message?: string;
+    rsvp?: RSVPResponse;
+    error?: string;
+    existingRsvpId?: string;
+    editToken?: string;
+  }>(res);
   if (!res.ok) {
     return {
       success: false,
@@ -70,7 +101,11 @@ export async function submitRsvp(
       editToken: data.editToken,
     };
   }
-  return data;
+  return {
+    ...data,
+    success: data.success ?? true,
+    message: data.message ?? 'RSVP submitted.',
+  };
 }
 
 export async function updateGuestRsvp(
@@ -92,11 +127,11 @@ export async function updateGuestRsvp(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
+  const data = await readApiJson<{ success?: boolean; rsvp?: RSVPResponse; error?: string }>(res);
   if (!res.ok) {
     return { success: false, error: data.error || 'Failed to update RSVP.' };
   }
-  return data;
+  return { ...data, success: data.success ?? true };
 }
 
 // Admin Auth API
@@ -106,7 +141,7 @@ export async function loginAdmin(username: string, password: string): Promise<{ 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   });
-  const data = await res.json();
+  const data = await readApiJson<{ success?: boolean; token?: string; error?: string }>(res);
   if (!res.ok) {
     return { success: false, error: data.error || 'Invalid credentials' };
   }
@@ -136,7 +171,7 @@ export async function fetchAdminInvitation(): Promise<{
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error('Failed to fetch admin invitation details');
-  return res.json();
+  return readApiJson(res);
 }
 
 export async function saveDraftInvitation(updates: Partial<InvitationData>): Promise<{ success: boolean; draft: InvitationData }> {
@@ -146,10 +181,10 @@ export async function saveDraftInvitation(updates: Partial<InvitationData>): Pro
     body: JSON.stringify(updates),
   });
   if (!res.ok) {
-    const err = await res.json();
+    const err = await readApiJson<{ error?: string }>(res);
     throw new Error(err.error || 'Failed to save draft');
   }
-  return res.json();
+  return readApiJson(res);
 }
 
 export async function publishInvitation(): Promise<{ success: boolean; published: InvitationData; message: string }> {
@@ -158,10 +193,10 @@ export async function publishInvitation(): Promise<{ success: boolean; published
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
-    const err = await res.json();
+    const err = await readApiJson<{ error?: string }>(res);
     throw new Error(err.error || 'Failed to publish invitation');
   }
-  return res.json();
+  return readApiJson(res);
 }
 
 export async function unpublishInvitation(): Promise<{ success: boolean; draft: InvitationData; message: string }> {
@@ -170,10 +205,10 @@ export async function unpublishInvitation(): Promise<{ success: boolean; draft: 
     headers: getAuthHeaders(),
   });
   if (!res.ok) {
-    const err = await res.json();
+    const err = await readApiJson<{ error?: string }>(res);
     throw new Error(err.error || 'Failed to unpublish invitation');
   }
-  return res.json();
+  return readApiJson(res);
 }
 
 // Admin File Upload
@@ -194,10 +229,10 @@ export async function uploadImageFile(file: File): Promise<{ success: boolean; u
   });
 
   if (!res.ok) {
-    const err = await res.json();
+    const err = await readApiJson<{ error?: string }>(res);
     throw new Error(err.error || 'Upload failed');
   }
-  return res.json();
+  return readApiJson(res);
 }
 
 // Admin RSVP APIs
@@ -206,7 +241,7 @@ export async function fetchAdminRsvps(): Promise<{ rsvps: RSVPResponse[]; metric
     headers: getAuthHeaders(),
   });
   if (!res.ok) throw new Error('Failed to load RSVP responses');
-  return res.json();
+  return readApiJson(res);
 }
 
 export async function updateAdminRsvp(id: string, updates: Partial<RSVPResponse>): Promise<RSVPResponse> {
@@ -216,7 +251,8 @@ export async function updateAdminRsvp(id: string, updates: Partial<RSVPResponse>
     body: JSON.stringify(updates),
   });
   if (!res.ok) throw new Error('Failed to update RSVP');
-  const data = await res.json();
+  const data = await readApiJson<{ rsvp?: RSVPResponse }>(res);
+  if (!data.rsvp) throw new Error('The server response did not include the updated RSVP.');
   return data.rsvp;
 }
 

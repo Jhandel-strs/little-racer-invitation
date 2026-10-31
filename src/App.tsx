@@ -154,7 +154,7 @@ export default function App() {
           <AlertCircle className="w-8 h-8" />
         </div>
         <h1 className="text-2xl sm:text-3xl font-black font-display uppercase text-white">
-          Invitation Not Found
+          Invitation unavailable
         </h1>
         <p className="text-sm text-slate-400 mt-2 max-w-md">
           {errorMsg || 'We could not locate this race invitation.'}
