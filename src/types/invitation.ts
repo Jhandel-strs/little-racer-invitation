@@ -35,6 +35,8 @@ export interface WishlistConfig {
   registryUrl?: string;
   registryName?: string;
   notes?: string;
+  cashGiftQrUrl?: string;
+  cashGiftCaption?: string;
 }
 
 export interface ThemeSettings {

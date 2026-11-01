@@ -80,6 +80,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSess
   const [uploadingBackdrop, setUploadingBackdrop] = useState(false);
   const [uploadingTrophy, setUploadingTrophy] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [uploadingCashGiftQr, setUploadingCashGiftQr] = useState(false);
 
   // RSVP filter and search
   const [rsvpSearch, setRsvpSearch] = useState('');
@@ -279,15 +280,17 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSess
 
   const handleUploadFile = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: 'mainPhoto' | 'backdrop' | 'trophy' | 'gallery'
+    type: 'mainPhoto' | 'backdrop' | 'trophy' | 'gallery' | 'cashGiftQr'
   ) => {
     const file = e.target.files?.[0];
+    e.currentTarget.value = '';
     if (!file || !draft) return;
 
     if (type === 'mainPhoto') setUploadingMainPhoto(true);
     if (type === 'backdrop') setUploadingBackdrop(true);
     if (type === 'trophy') setUploadingTrophy(true);
     if (type === 'gallery') setUploadingGallery(true);
+    if (type === 'cashGiftQr') setUploadingCashGiftQr(true);
 
     try {
       const res = await uploadImageFile(file);
@@ -309,6 +312,11 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSess
             ...draft,
             gallery: [...(draft.gallery || []), newItem],
           });
+        } else if (type === 'cashGiftQr') {
+          setDraft({
+            ...draft,
+            wishlist: { ...draft.wishlist, cashGiftQrUrl: res.url },
+          });
         }
       }
     } catch (err: any) {
@@ -318,6 +326,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSess
       if (type === 'backdrop') setUploadingBackdrop(false);
       if (type === 'trophy') setUploadingTrophy(false);
       if (type === 'gallery') setUploadingGallery(false);
+      if (type === 'cashGiftQr') setUploadingCashGiftQr(false);
     }
   };
 
@@ -1298,6 +1307,68 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSess
                         placeholder="A birthday keepsake made for little celebrations"
                         className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white outline-none focus:border-rose-500"
                       />
+                    </div>
+
+                    <div className="sm:col-span-2 rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-300 mb-1">
+                          Cash Gift QR Code
+                        </label>
+                        <p className="text-[10px] leading-relaxed text-slate-500">
+                          Upload the payment QR code you want to share with guests. It will appear with the caption on the public invitation.
+                        </p>
+                      </div>
+                      {draft.wishlist?.cashGiftQrUrl && (
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={draft.wishlist.cashGiftQrUrl}
+                            alt="Cash gift QR code preview"
+                            referrerPolicy="no-referrer"
+                            className="h-28 w-28 rounded-xl border border-slate-700 bg-white p-2 object-contain"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDraft({
+                                ...draft,
+                                wishlist: { ...draft.wishlist, cashGiftQrUrl: '' },
+                              })
+                            }
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-900/60 px-3 py-2 text-[10px] font-bold text-rose-300 hover:bg-rose-950/50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Remove QR code
+                          </button>
+                        </div>
+                      )}
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white transition-colors hover:bg-rose-500">
+                        <Upload className="h-3.5 w-3.5" />
+                        {uploadingCashGiftQr ? 'Uploading...' : draft.wishlist?.cashGiftQrUrl ? 'Replace QR code' : 'Upload QR code'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingCashGiftQr}
+                          onChange={(e) => handleUploadFile(e, 'cashGiftQr')}
+                        />
+                      </label>
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          Cash Gift Caption
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={draft.wishlist?.cashGiftCaption || ''}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              wishlist: { ...draft.wishlist, cashGiftCaption: e.target.value },
+                            })
+                          }
+                          placeholder="For those who wish to chuchuc our Champion Eros, a monetary gift is always appreciated. Thank you for your love and generosity!"
+                          className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-rose-500"
+                        />
+                      </div>
                     </div>
 
                     <div>

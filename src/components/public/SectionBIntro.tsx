@@ -145,6 +145,26 @@ export const SectionBIntro: React.FC<Props> = ({ invitation }) => {
                     <p className="mt-1 text-xs leading-relaxed text-slate-400">Choose a small surprise that fits the rider’s favorite things.</p>
                   </div>
                 </div>
+
+                {invitation.wishlist?.cashGiftQrUrl && (
+                  <div className="flex flex-col items-center gap-4 rounded-2xl border border-amber-300/30 bg-gradient-to-r from-amber-950/50 to-slate-900 p-4 text-center sm:flex-row sm:text-left">
+                    <img
+                      src={invitation.wishlist.cashGiftQrUrl}
+                      alt="Cash gift QR code for Champion Eros"
+                      referrerPolicy="no-referrer"
+                      className="h-40 w-40 shrink-0 rounded-xl bg-white p-2 object-contain"
+                    />
+                    <div>
+                      <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-amber-300">
+                        Cash gift
+                      </div>
+                      <p className="mt-1 text-sm font-semibold leading-relaxed text-white">
+                        {invitation.wishlist.cashGiftCaption ||
+                          'For those who wish to chuchuc our Champion Eros, a monetary gift is always appreciated. Thank you for your love and generosity!'}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
