@@ -212,11 +212,14 @@ const DEFAULT_INVITATION: InvitationData = {
     },
   ],
   milestones: {
-    favoriteFood: 'Mashed sweet potatoes & teething biscuits',
-    favoriteToy: 'Zooming red wooden sports car',
-    teethCount: 6,
+    favoriteFood: 'Melanie',
+    favoriteToy: 'Zooming red sports car',
+    teethCount: 8,
     lovesTo: 'Clap hands when hearing car sounds & wave flags',
-    giftIdeas: 'Board books, wooden cars & musical toys',
+    giftIdeas: 'Big PidgeonBottle',
+    giftRecommendationPlay: 'Clothes',
+    giftRecommendationStory: 'Baby essentials',
+    giftRecommendationKeepsake: 'Similac GainPlus 1-3 yrs Old',
     superpower: 'Speed crawling across the living room in 3 seconds flat!',
     height: '30.5 inches (77 cm)',
     weight: '22.4 lbs (10.2 kg)',
@@ -257,6 +260,9 @@ const DEFAULT_INVITATION: InvitationData = {
     registryUrl: 'https://www.amazon.com/baby-reg',
     registryName: "Leo's Amazon Birthday Registry",
     notes: 'Your love and presence is the greatest gift! For those asking, handwritten notes inside storybooks are treasured forever.',
+    cashGiftQrUrl: 'https://drive.google.com/thumbnail?id=1FCLtnqwMpPgQKhGqIB589Ne1YNZpsJIT&sz=w2000',
+    cashGiftCaption: 'Your love and generosity will make their first birthday even more special. Thank you!',
+    cashGiftNumber: '09273931231',
   },
   wishes: [
     {

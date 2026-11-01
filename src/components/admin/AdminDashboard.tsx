@@ -1369,6 +1369,27 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSess
                           className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-rose-500"
                         />
                       </div>
+                      <div>
+                        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                          Number Shown With QR Code
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="tel"
+                          value={draft.wishlist?.cashGiftNumber || ''}
+                          onChange={(e) =>
+                            setDraft({
+                              ...draft,
+                              wishlist: { ...draft.wishlist, cashGiftNumber: e.target.value },
+                            })
+                          }
+                          placeholder="Enter the number guests should use"
+                          className="w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2 text-xs text-white outline-none focus:border-rose-500"
+                        />
+                        <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+                          This is displayed separately beneath the QR code on the invitation.
+                        </p>
+                      </div>
                     </div>
 
                     <div>

@@ -86,11 +86,24 @@
       }
     ],
     "milestones": {
-      "favoriteFood": "Chickenjoy & mashed sweet potatoes",
+      "favoriteFood": "Melanie",
       "favoriteToy": "Zooming red sports car",
-      "teethCount": 6,
+      "teethCount": 8,
       "lovesTo": "Clap hands when hearing music & wave flags",
+      "giftIdeas": "Big PidgeonBottle",
+      "giftRecommendationPlay": "Clothes",
+      "giftRecommendationStory": "Baby essentials",
+      "giftRecommendationKeepsake": "Similac GainPlus 1-3 yrs Old",
       "superpower": "Speed crawling across the room in 3 seconds flat!"
+    },
+    "wishlist": {
+      "enabled": true,
+      "clothingSize": "12 – 18 Months",
+      "shoeSize": "Size 4 Infant / Toddler",
+      "favoriteItems": [],
+      "cashGiftQrUrl": "https://drive.google.com/thumbnail?id=1FCLtnqwMpPgQKhGqIB589Ne1YNZpsJIT&sz=w2000",
+      "cashGiftCaption": "Your love and generosity will make their first birthday even more special. Thank you!",
+      "cashGiftNumber": "09273931231"
     },
     "theme": {
       "primaryColor": "#E11D48",
@@ -269,11 +282,24 @@
       }
     ],
     "milestones": {
-      "favoriteFood": "Chickenjoy & mashed sweet potatoes",
+      "favoriteFood": "Melanie",
       "favoriteToy": "Zooming red sports car",
-      "teethCount": 6,
+      "teethCount": 8,
       "lovesTo": "Clap hands when hearing music & wave flags",
+      "giftIdeas": "Big PidgeonBottle",
+      "giftRecommendationPlay": "Clothes",
+      "giftRecommendationStory": "Baby essentials",
+      "giftRecommendationKeepsake": "Similac GainPlus 1-3 yrs Old",
       "superpower": "Speed crawling across the room in 3 seconds flat!"
+    },
+    "wishlist": {
+      "enabled": true,
+      "clothingSize": "12 – 18 Months",
+      "shoeSize": "Size 4 Infant / Toddler",
+      "favoriteItems": [],
+      "cashGiftQrUrl": "https://drive.google.com/thumbnail?id=1FCLtnqwMpPgQKhGqIB589Ne1YNZpsJIT&sz=w2000",
+      "cashGiftCaption": "Your love and generosity will make their first birthday even more special. Thank you!",
+      "cashGiftNumber": "09273931231"
     },
     "theme": {
       "primaryColor": "#E11D48",

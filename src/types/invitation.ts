@@ -37,6 +37,7 @@ export interface WishlistConfig {
   notes?: string;
   cashGiftQrUrl?: string;
   cashGiftCaption?: string;
+  cashGiftNumber?: string;
 }
 
 export interface ThemeSettings {

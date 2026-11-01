@@ -148,12 +148,19 @@ export const SectionBIntro: React.FC<Props> = ({ invitation }) => {
 
                 {invitation.wishlist?.cashGiftQrUrl && (
                   <div className="flex flex-col items-center gap-4 rounded-2xl border border-amber-300/30 bg-gradient-to-r from-amber-950/50 to-slate-900 p-4 text-center sm:flex-row sm:text-left">
-                    <img
-                      src={invitation.wishlist.cashGiftQrUrl}
-                      alt="Cash gift QR code for Champion Eros"
-                      referrerPolicy="no-referrer"
-                      className="h-40 w-40 shrink-0 rounded-xl bg-white p-2 object-contain"
-                    />
+                    <div className="flex shrink-0 flex-col items-center gap-2">
+                      <img
+                        src={invitation.wishlist.cashGiftQrUrl}
+                        alt="Cash gift QR code for Champion Eros"
+                        referrerPolicy="no-referrer"
+                        className="h-40 w-40 rounded-xl bg-white p-2 object-contain"
+                      />
+                      {invitation.wishlist.cashGiftNumber && (
+                        <p className="text-sm font-bold tracking-wide text-white">
+                          {invitation.wishlist.cashGiftNumber}
+                        </p>
+                      )}
+                    </div>
                     <div>
                       <div className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-amber-300">
                         Cash gift

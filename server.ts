@@ -263,6 +263,16 @@ async function ensurePersistentInvitationState(): Promise<void> {
     if (!result.state.draft?.id || !result.state.draft?.slug) {
       throw new Error('Google Drive returned an invalid saved invitation.');
     }
+    const state = result.state;
+    const migratedDraft = migrateCashGiftNumber(state.draft);
+    const migratedPublished = state.published ? migrateCashGiftNumber(state.published) : false;
+    if (migratedDraft || migratedPublished) {
+      await requestRsvpSheet({
+        action: 'save-invitation',
+        key: rsvpSheetReadKey,
+        state,
+      });
+    }
     db.replaceInvitationState(result.state.draft, result.state.published || null);
   } else {
     const initialState = db.getInvitationState();
@@ -273,6 +283,18 @@ async function ensurePersistentInvitationState(): Promise<void> {
     });
   }
   persistentInvitationStateReady = true;
+}
+
+function migrateCashGiftNumber(invitation: InvitationData): boolean {
+  const wishlist = invitation.wishlist;
+  if (!wishlist || wishlist.cashGiftNumber || !wishlist.cashGiftCaption) return false;
+
+  const match = wishlist.cashGiftCaption.match(/^(\+?[\d][\d ()-]{6,})\r?\n([\s\S]*)$/);
+  if (!match) return false;
+
+  wishlist.cashGiftNumber = match[1].trim();
+  wishlist.cashGiftCaption = match[2].trim();
+  return true;
 }
 
 async function persistInvitationState(
