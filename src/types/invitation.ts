@@ -109,6 +109,7 @@ export interface InvitationData {
   eventDate: string; // YYYY-MM-DD
   startTime: string; // HH:mm
   endTime: string; // HH:mm
+  timeFormat?: '12-hour' | '24-hour';
   timezone: string; // e.g. "America/Los_Angeles"
   venueName: string;
   venueAddress: string;

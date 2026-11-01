@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Timer, Gauge, Flag, Sparkles } from 'lucide-react';
 import type { InvitationData } from '../../types/invitation';
 import { CanvaScrollReveal } from './CanvaScrollReveal';
+import { formatStandardTime, toTwentyFourHourTime, parseStandardTime } from '../../utils/time';
 
 interface Props {
   invitation: InvitationData;
@@ -34,7 +35,12 @@ export const SectionCCountdown: React.FC<Props> = ({ invitation }) => {
     const calculateTime = () => {
       try {
         const dateStr = invitation.eventDate;
-        const timeStr = invitation.startTime || '14:00';
+        const timeParts = parseStandardTime(invitation.startTime || '2:00 PM');
+        if (!timeParts) {
+          setTimeLeft((prev) => ({ ...prev, isValid: false }));
+          return;
+        }
+        const timeStr = toTwentyFourHourTime(timeParts);
 
         if (!dateStr) {
           setTimeLeft((prev) => ({ ...prev, isValid: false }));
@@ -132,7 +138,7 @@ export const SectionCCountdown: React.FC<Props> = ({ invitation }) => {
         <CanvaScrollReveal direction="left" delay={250} enabled={canvaAnim}>
           <p className="text-sm text-slate-400 mt-1">
             Target Launch: <span className="text-rose-400 font-bold">{formattedEventDate}</span> at{' '}
-            <span className="text-slate-200 font-semibold">{invitation.startTime || '2:00 PM'}</span>
+            <span className="text-slate-200 font-semibold">{formatStandardTime(invitation.startTime || '14:00', invitation.timeFormat)}</span>
           </p>
         </CanvaScrollReveal>
 

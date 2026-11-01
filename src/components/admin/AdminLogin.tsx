@@ -5,9 +5,10 @@ import { loginAdmin } from '../../utils/api';
 interface Props {
   onLoginSuccess: () => void;
   onBackToPublic: () => void;
+  notice?: string | null;
 }
 
-export const AdminLogin: React.FC<Props> = ({ onLoginSuccess, onBackToPublic }) => {
+export const AdminLogin: React.FC<Props> = ({ onLoginSuccess, onBackToPublic, notice }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -70,6 +71,12 @@ export const AdminLogin: React.FC<Props> = ({ onLoginSuccess, onBackToPublic }) 
             <div className="mb-6 p-4 rounded-2xl bg-rose-950/80 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-3">
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
               <div>{errorMsg}</div>
+            </div>
+          )}
+
+          {notice && (
+            <div className="mb-6 p-4 rounded-2xl bg-amber-950/60 border border-amber-500/30 text-amber-200 text-xs">
+              {notice}
             </div>
           )}
 

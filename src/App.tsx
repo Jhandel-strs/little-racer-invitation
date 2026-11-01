@@ -9,6 +9,7 @@ import { Flag, Lock, AlertCircle, RefreshCw, Clock } from 'lucide-react';
 export default function App() {
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
+  const [adminLoginNotice, setAdminLoginNotice] = useState<string | null>(null);
   const [invitation, setInvitation] = useState<InvitationData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isDraftUnpublished, setIsDraftUnpublished] = useState<boolean>(false);
@@ -78,13 +79,21 @@ export default function App() {
     if (!isAdminAuthenticated) {
       return (
         <AdminLogin
-          onLoginSuccess={() => setIsAdminAuthenticated(true)}
+          notice={adminLoginNotice}
+          onLoginSuccess={() => {
+            setAdminLoginNotice(null);
+            setIsAdminAuthenticated(true);
+          }}
           onBackToPublic={() => navigate('/')}
         />
       );
     }
     return (
       <AdminDashboard
+        onSessionExpired={() => {
+          setIsAdminAuthenticated(false);
+          setAdminLoginNotice('Your admin session expired. Please sign in again.');
+        }}
         onLogout={() => {
           setIsAdminAuthenticated(false);
           navigate('/');

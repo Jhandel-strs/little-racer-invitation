@@ -41,15 +41,19 @@ import {
   updateAdminRsvp,
   deleteAdminRsvp,
   logoutAdmin,
+  AdminSessionExpiredError,
 } from '../../utils/api';
 import { AdminLivePreviewModal } from './AdminLivePreviewModal';
+import { StandardTimeInput } from './StandardTimeInput';
+import { formatStandardTime } from '../../utils/time';
 
 interface Props {
   onLogout: () => void;
   onViewPublic: () => void;
+  onSessionExpired: () => void;
 }
 
-export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
+export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSessionExpired }) => {
   const [draft, setDraft] = useState<InvitationData | null>(null);
   const [published, setPublished] = useState<InvitationData | null>(null);
   const draftInitialized = useRef(false);
@@ -85,7 +89,10 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
     try {
       const data = await fetchAdminInvitation();
       if (!draftInitialized.current) {
-        setDraft(data.draft);
+        setDraft({
+          ...data.draft,
+          timeFormat: data.draft.timeFormat || '12-hour',
+        });
         draftInitialized.current = true;
       }
       setPublished(data.published);
@@ -159,6 +166,10 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
       seenActivityIds.current = currentActivityIds;
       if (requestErrors.length && !backgroundRefresh) setErrorMsg(requestErrors.join(' '));
     } catch (err: any) {
+      if (err instanceof AdminSessionExpiredError) {
+        onSessionExpired();
+        return;
+      }
       if (!backgroundRefresh) {
         setErrorMsg(err.message || 'Failed to load admin data.');
       }
@@ -909,7 +920,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                   </p>
                   <div className="mt-3 text-xs text-sky-400 font-bold flex flex-wrap items-center justify-center sm:justify-start gap-4">
                     <span>📅 {draft.eventDate}</span>
-                    <span>⏰ {draft.startTime} – {draft.endTime}</span>
+                    <span>⏰ {formatStandardTime(draft.startTime, draft.timeFormat)} – {formatStandardTime(draft.endTime, draft.timeFormat)}</span>
                     <span>📍 {draft.venueName}</span>
                   </div>
                 </div>
@@ -994,7 +1005,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                 </div>
 
                 {/* Event Date, Start & End Time */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
                       EVENT DATE
@@ -1007,28 +1018,37 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                      START TIME
-                    </label>
-                    <input
-                      type="time"
-                      value={draft.startTime}
-                      onChange={(e) => setDraft({ ...draft, startTime: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-rose-500 outline-none"
-                    />
-                  </div>
+                  <StandardTimeInput
+                    label="START TIME"
+                    value={draft.startTime}
+                    format={draft.timeFormat || '12-hour'}
+                    onChange={(startTime) => setDraft({ ...draft, startTime })}
+                  />
+
+                  <StandardTimeInput
+                    label="END TIME"
+                    value={draft.endTime}
+                    format={draft.timeFormat || '12-hour'}
+                    onChange={(endTime) => setDraft({ ...draft, endTime })}
+                  />
 
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
-                      END TIME
+                      TIME FORMAT
                     </label>
-                    <input
-                      type="time"
-                      value={draft.endTime}
-                      onChange={(e) => setDraft({ ...draft, endTime: e.target.value })}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:border-rose-500 outline-none"
-                    />
+                    <select
+                      value={draft.timeFormat || '12-hour'}
+                      onChange={(e) =>
+                        setDraft({
+                          ...draft,
+                          timeFormat: e.target.value as '12-hour' | '24-hour',
+                        })
+                      }
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:border-rose-500 outline-none"
+                    >
+                      <option value="12-hour">12-hour (7:00 PM)</option>
+                      <option value="24-hour">24-hour (19:00)</option>
+                    </select>
                   </div>
                 </div>
 

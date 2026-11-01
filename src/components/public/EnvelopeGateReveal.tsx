@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight, Flag, Ticket } from 'lucide-react';
 import type { InvitationData } from '../../types/invitation';
+import { formatStandardTime } from '../../utils/time';
 
 interface Props {
   invitation: InvitationData;
@@ -94,7 +95,7 @@ export const EnvelopeGateReveal: React.FC<Props> = ({ invitation, onOpened }) =>
             <span>{isOpening ? 'Getting the track ready…' : 'Open your invitation'}</span>
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
           </button>
-          <p className="mt-3 text-center text-xs text-slate-500">{invitation.startTime ? `${invitation.startTime} · ` : ''}Your full race-day details are waiting inside.</p>
+          <p className="mt-3 text-center text-xs text-slate-500">{invitation.startTime ? `${formatStandardTime(invitation.startTime, invitation.timeFormat)} · ` : ''}Your full race-day details are waiting inside.</p>
         </div>
       </article>
     </div>

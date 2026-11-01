@@ -2,6 +2,13 @@ import type { GuestWish, InvitationData, RSVPResponse } from '../types/invitatio
 
 const TOKEN_KEY = 'little_racer_admin_token';
 
+export class AdminSessionExpiredError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AdminSessionExpiredError';
+  }
+}
+
 async function readApiJson<T>(res: Response): Promise<T> {
   const body = await res.text();
 
@@ -172,6 +179,10 @@ export async function fetchAdminInvitation(): Promise<{
   });
   if (!res.ok) {
     const data = await readApiJson<{ error?: string }>(res);
+    if (res.status === 401) {
+      clearStoredToken();
+      throw new AdminSessionExpiredError(data.error || 'Your admin session expired. Please sign in again.');
+    }
     throw new Error(data.error || `Failed to fetch admin invitation details (HTTP ${res.status}).`);
   }
   return readApiJson(res);

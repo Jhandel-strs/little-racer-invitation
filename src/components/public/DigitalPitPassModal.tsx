@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Flag, Download, Share2, Sparkles, Check } from 'lucide-react';
 import type { InvitationData } from '../../types/invitation';
+import { formatStandardTime } from '../../utils/time';
 
 interface Props {
   invitation: InvitationData;
@@ -61,7 +62,7 @@ export const DigitalPitPassModal: React.FC<Props> = ({ invitation, guestName, on
           </div>
           <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800">
             <span className="text-slate-400 text-[9px] uppercase font-bold block">Pit Gate</span>
-            <span className="font-bold text-white">Gate 1 ({invitation.startTime})</span>
+            <span className="font-bold text-white">Gate 1 ({formatStandardTime(invitation.startTime, invitation.timeFormat)})</span>
           </div>
         </div>
 

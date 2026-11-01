@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowRight, Check, Flag, Share2, Ticket } from 'lucide-react';
 import type { InvitationData } from '../../types/invitation';
+import { formatStandardTime } from '../../utils/time';
 
 interface Props {
   invitation: InvitationData;
@@ -142,7 +143,7 @@ export const SectionAOpening: React.FC<Props> = ({ invitation, onStartEngines })
                 </div>
                 <div className="rounded-2xl bg-white px-3 py-3 sm:px-4">
                   <p className="text-[9px] font-extrabold uppercase tracking-[0.16em] text-rose-700">Green flag</p>
-                  <p className="mt-1 text-sm font-extrabold text-slate-900">{invitation.startTime || 'Time to be announced'}</p>
+                  <p className="mt-1 text-sm font-extrabold text-slate-900">{invitation.startTime ? formatStandardTime(invitation.startTime, invitation.timeFormat) : 'Time to be announced'}</p>
                 </div>
                 {invitation.venueName && (
                   <div className="col-span-2 flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-3 sm:px-4">

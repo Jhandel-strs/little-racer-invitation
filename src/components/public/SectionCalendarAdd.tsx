@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Calendar, Download, ExternalLink, Check } from 'lucide-react';
 import type { InvitationData } from '../../types/invitation';
 import { CanvaScrollReveal } from './CanvaScrollReveal';
+import { parseStandardTime, toTwentyFourHourTime } from '../../utils/time';
 
 interface Props {
   invitation: InvitationData;
@@ -18,8 +19,8 @@ export const SectionCalendarAdd: React.FC<Props> = ({ invitation }) => {
     const location = `${invitation.venueName}, ${invitation.venueAddress}`;
 
     const dateStr = invitation.eventDate.replace(/-/g, '');
-    const startTimeClean = (invitation.startTime || '14:00').replace(':', '');
-    const endTimeClean = (invitation.endTime || '18:00').replace(':', '');
+    const startTimeClean = toTwentyFourHourTime(parseStandardTime(invitation.startTime || '2:00 PM') || { hour: 2, minute: 0, period: 'PM' }).replace(':', '');
+    const endTimeClean = toTwentyFourHourTime(parseStandardTime(invitation.endTime || '6:00 PM') || { hour: 6, minute: 0, period: 'PM' }).replace(':', '');
 
     const dates = `${dateStr}T${startTimeClean}00/${dateStr}T${endTimeClean}00`;
 

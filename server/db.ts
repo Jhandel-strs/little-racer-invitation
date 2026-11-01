@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import type { InvitationData, RSVPResponse } from '../src/types/invitation';
+import { formatStandardTime } from '../src/utils/time';
 
 export interface AdminUser {
   id: string;
@@ -140,6 +141,7 @@ const DEFAULT_INVITATION: InvitationData = {
   eventDate: '2026-11-14',
   startTime: '14:00',
   endTime: '18:00',
+  timeFormat: '12-hour',
   timezone: 'America/Los_Angeles',
   venueName: 'Grand Prix Raceway & Kids Club',
   venueAddress: '450 Speedway Boulevard, Los Angeles, CA 90028',
@@ -394,11 +396,28 @@ class Database {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed.admin && parsed.draftInvitation) {
+          let needsSave = false;
           if (!parsed.admin.username || parsed.admin.email) {
             parsed.admin.username = 'admin';
             delete parsed.admin.email;
-            this.save(parsed);
+            needsSave = true;
           }
+          for (const invitation of [parsed.draftInvitation, parsed.publishedInvitation]) {
+            if (!invitation) continue;
+            const startTime = formatStandardTime(invitation.startTime, '24-hour');
+            const endTime = formatStandardTime(invitation.endTime, '24-hour');
+            if (
+              startTime !== invitation.startTime ||
+              endTime !== invitation.endTime ||
+              !invitation.timeFormat
+            ) {
+              invitation.startTime = startTime;
+              invitation.endTime = endTime;
+              invitation.timeFormat = invitation.timeFormat || '12-hour';
+              needsSave = true;
+            }
+          }
+          if (needsSave) this.save(parsed);
           return parsed;
         }
       } catch (e) {
@@ -496,10 +515,15 @@ class Database {
   }
 
   saveDraft(updates: Partial<InvitationData>): InvitationData {
-    this.data.draftInvitation = {
+    const updatedInvitation = {
       ...this.data.draftInvitation,
       ...updates,
       updatedAt: new Date().toISOString(),
+    };
+    updatedInvitation.startTime = formatStandardTime(updatedInvitation.startTime, '24-hour');
+    updatedInvitation.endTime = formatStandardTime(updatedInvitation.endTime, '24-hour');
+    this.data.draftInvitation = {
+      ...updatedInvitation,
     };
     this.save();
     return this.data.draftInvitation;
@@ -507,6 +531,8 @@ class Database {
 
   publish(): InvitationData {
     const now = new Date().toISOString();
+    this.data.draftInvitation.startTime = formatStandardTime(this.data.draftInvitation.startTime, '24-hour');
+    this.data.draftInvitation.endTime = formatStandardTime(this.data.draftInvitation.endTime, '24-hour');
     this.data.draftInvitation.status = 'published';
     this.data.draftInvitation.publishedAt = now;
     this.data.draftInvitation.updatedAt = now;

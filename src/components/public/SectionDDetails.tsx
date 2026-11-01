@@ -2,6 +2,7 @@ import React from 'react';
 import { Calendar, Clock, MapPin, Shirt, Award, Flag } from 'lucide-react';
 import type { InvitationData } from '../../types/invitation';
 import { CanvaScrollReveal } from './CanvaScrollReveal';
+import { formatStandardTime } from '../../utils/time';
 
 interface Props {
   invitation: InvitationData;
@@ -75,9 +76,9 @@ export const SectionDDetails: React.FC<Props> = ({ invitation }) => {
               <div>
                 <div className="text-xs font-bold uppercase tracking-wider text-slate-400">RACE HOURS</div>
                 <div className="text-lg font-black text-white mt-0.5">
-                  {invitation.startTime || '2:00 PM'} – {invitation.endTime || '6:00 PM'}
+                  {formatStandardTime(invitation.startTime || '14:00', invitation.timeFormat)} – {formatStandardTime(invitation.endTime || '18:00', invitation.timeFormat)}
                 </div>
-                <div className="text-sm text-sky-400 font-semibold mt-1">Green Flag drops at {invitation.startTime || '2:00 PM'} sharp</div>
+                <div className="text-sm text-sky-400 font-semibold mt-1">Green Flag drops at {formatStandardTime(invitation.startTime || '14:00', invitation.timeFormat)} sharp</div>
               </div>
             </div>
           </CanvaScrollReveal>

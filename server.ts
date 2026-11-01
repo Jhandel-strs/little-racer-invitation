@@ -4,6 +4,7 @@ import multer from 'multer';
 import fs from 'fs';
 import { db, verifyPassword, UPLOADS_DIR } from './server/db.js';
 import type { GuestWish, RSVPResponse } from './src/types/invitation';
+import { parseStandardTime, toTwentyFourHourTime } from './src/utils/time';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -400,8 +401,8 @@ app.get('/api/calendar/:slug/invite.ics', (req: Request, res: Response) => {
 
   // Format YYYYMMDDTHHmmSSZ
   const dateStr = invitation.eventDate.replace(/-/g, '');
-  const startHour = (invitation.startTime || '14:00').replace(':', '');
-  const endHour = (invitation.endTime || '18:00').replace(':', '');
+  const startHour = toTwentyFourHourTime(parseStandardTime(invitation.startTime || '2:00 PM') || { hour: 2, minute: 0, period: 'PM' }).replace(':', '');
+  const endHour = toTwentyFourHourTime(parseStandardTime(invitation.endTime || '6:00 PM') || { hour: 6, minute: 0, period: 'PM' }).replace(':', '');
 
   const dtStart = `${dateStr}T${startHour}00`;
   const dtEnd = `${dateStr}T${endHour}00`;
