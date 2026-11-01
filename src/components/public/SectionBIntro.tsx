@@ -18,13 +18,13 @@ export const SectionBIntro: React.FC<Props> = ({ invitation }) => {
   const lovesMusic = /music|song|dance|clap|rhythm/.test(interests);
 
   return (
-    <section className="relative py-16 px-4 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white overflow-hidden">
+    <section className="relative py-10 px-4 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-white overflow-hidden sm:py-16">
       {/* Decorative Track Mark / Checkered Border */}
       <div className="absolute top-0 left-0 right-0 h-3 bg-checkered-sm opacity-80" />
 
       <div className="max-w-4xl mx-auto">
         {/* Section Heading with Canva-Style Kinetic Left-to-Right Reveal */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8 sm:mb-12">
           <CanvaScrollReveal direction="left" delay={50} enabled={canvaAnim}>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold tracking-widest uppercase mb-3 border border-rose-500/30">
               <Trophy className="w-3.5 h-3.5 text-amber-400" />
@@ -55,11 +55,11 @@ export const SectionBIntro: React.FC<Props> = ({ invitation }) => {
 
         {/* Celebrant Profile & Stats Card with Canva Slide-In */}
         <CanvaScrollReveal direction="left" delay={300} enabled={canvaAnim}>
-          <div className="bg-slate-800/80 rounded-3xl p-6 sm:p-8 border border-slate-700 shadow-2xl backdrop-blur-md">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+          <div className="bg-slate-800/80 rounded-3xl p-4 sm:p-8 border border-slate-700 shadow-2xl backdrop-blur-md">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 items-center">
               {/* Baby Portrait & Trophy Stamp */}
               <div className="md:col-span-5 flex flex-col items-center">
-                <div className="relative w-48 h-48 sm:w-56 sm:h-56 rounded-3xl overflow-hidden shadow-2xl border-4 border-rose-500/80 bg-slate-900 group">
+                <div className="relative w-40 h-40 sm:w-56 sm:h-56 rounded-3xl overflow-hidden shadow-2xl border-4 border-rose-500/80 bg-slate-900 group">
                   <img
                     src={invitation.mainPhotoUrl || '/src/assets/images/baby_racer_portrait_1792840991262.jpg'}
                     alt={invitation.celebrantName}
@@ -86,7 +86,7 @@ export const SectionBIntro: React.FC<Props> = ({ invitation }) => {
               </div>
 
               {/* Birthday Gift Recommendations */}
-              <div className="md:col-span-7 space-y-4">
+              <div className="md:col-span-7 space-y-3 sm:space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 pb-3">
                   <div className="flex items-center gap-2.5">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-500/15 text-rose-300 ring-1 ring-rose-400/20">
