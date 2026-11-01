@@ -498,6 +498,19 @@ class Database {
   }
 
   // Invitation Management
+  getInvitationState(): { draft: InvitationData; published: InvitationData | null } {
+    return {
+      draft: this.data.draftInvitation,
+      published: this.data.publishedInvitation,
+    };
+  }
+
+  replaceInvitationState(draft: InvitationData, published: InvitationData | null): void {
+    this.data.draftInvitation = JSON.parse(JSON.stringify(draft));
+    this.data.publishedInvitation = published ? JSON.parse(JSON.stringify(published)) : null;
+    this.save();
+  }
+
   getDraftInvitation(): InvitationData {
     return this.data.draftInvitation;
   }
@@ -514,7 +527,7 @@ class Database {
     return this.data.publishedInvitation;
   }
 
-  saveDraft(updates: Partial<InvitationData>): InvitationData {
+  prepareDraft(updates: Partial<InvitationData>): InvitationData {
     const updatedInvitation = {
       ...this.data.draftInvitation,
       ...updates,
@@ -522,10 +535,12 @@ class Database {
     };
     updatedInvitation.startTime = formatStandardTime(updatedInvitation.startTime, '24-hour');
     updatedInvitation.endTime = formatStandardTime(updatedInvitation.endTime, '24-hour');
-    this.data.draftInvitation = {
-      ...updatedInvitation,
-    };
-    this.save();
+    return updatedInvitation;
+  }
+
+  saveDraft(updates: Partial<InvitationData>): InvitationData {
+    const updatedInvitation = this.prepareDraft(updates);
+    this.replaceInvitationState(updatedInvitation, this.data.publishedInvitation);
     return this.data.draftInvitation;
   }
 

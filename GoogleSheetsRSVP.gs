@@ -9,6 +9,7 @@ const RSVP_HEADERS = [
 
 const WISH_SHEET_NAME = 'Birthday Wishes';
 const WISH_HEADERS = ['Submitted at', 'Invitation', 'Guest name', 'Wish', 'Badge'];
+const INVITATION_STATE_FILE_PROPERTY = 'INVITATION_STATE_FILE_ID';
 
 function initialize() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -19,6 +20,7 @@ function initialize() {
   PropertiesService.getScriptProperties().setProperty('RSVP_SPREADSHEET_ID', spreadsheet.getId());
   getOrCreateResponseSheet(spreadsheet);
   getOrCreateWishSheet(spreadsheet);
+  getOrCreateInvitationStateFile();
 }
 
 function doGet() {
@@ -39,6 +41,18 @@ function doPost(event) {
     if (request.action === 'list-wishes') {
       return jsonResponse(listWishes(request.key));
     }
+    if (request.action === 'get-invitation') {
+      requireReadKey(request.key);
+      return jsonResponse({ success: true, state: getInvitationState() });
+    }
+    if (request.action === 'save-invitation') {
+      requireReadKey(request.key);
+      return jsonResponse(saveInvitationState(request.state));
+    }
+    if (request.action === 'upload-image') {
+      requireReadKey(request.key);
+      return jsonResponse(uploadInvitationImage(request));
+    }
     if (request.action === 'wish') {
       return jsonResponse(addWish(request));
     }
@@ -51,6 +65,70 @@ function doPost(event) {
       lock.releaseLock();
     }
   }
+}
+
+function getInvitationState() {
+  const file = getInvitationStateFile();
+  if (!file) return null;
+
+  const state = JSON.parse(file.getBlob().getDataAsString());
+  if (state && state.draft === null && state.published === null) return null;
+  if (!state || !state.draft || !Object.prototype.hasOwnProperty.call(state, 'published')) {
+    throw new Error('The saved invitation state is invalid.');
+  }
+  return state;
+}
+
+function saveInvitationState(state) {
+  if (!state || !state.draft || !Object.prototype.hasOwnProperty.call(state, 'published')) {
+    throw new Error('A draft and published invitation state are required.');
+  }
+
+  const file = getInvitationStateFile() || getOrCreateInvitationStateFile();
+  file.setContent(JSON.stringify(state));
+  return { success: true };
+}
+
+function uploadInvitationImage(request) {
+  const filename = String(request.filename || 'invitation-image')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .slice(0, 100);
+  const mimeType = String(request.mimeType || '');
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+  if (!allowedTypes.includes(mimeType)) {
+    throw new Error('Only JPEG, PNG, WEBP, GIF, and SVG images are permitted.');
+  }
+  if (!request.data) throw new Error('No image data was provided.');
+
+  const bytes = Utilities.base64Decode(request.data);
+  if (bytes.length > 12 * 1024 * 1024) throw new Error('Images must be 12MB or smaller.');
+
+  const file = DriveApp.createFile(Utilities.newBlob(bytes, mimeType, filename));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return {
+    success: true,
+    filename: file.getName(),
+    url: `https://drive.google.com/thumbnail?id=${file.getId()}&sz=w2000`,
+  };
+}
+
+function getInvitationStateFile() {
+  const fileId = PropertiesService.getScriptProperties().getProperty(INVITATION_STATE_FILE_PROPERTY);
+  if (!fileId) return null;
+  return DriveApp.getFileById(fileId);
+}
+
+function getOrCreateInvitationStateFile() {
+  const existing = getInvitationStateFile();
+  if (existing) return existing;
+
+  const file = DriveApp.createFile(
+    'Little Racer Invitation State.json',
+    JSON.stringify({ draft: null, published: null }),
+    MimeType.PLAIN_TEXT
+  );
+  PropertiesService.getScriptProperties().setProperty(INVITATION_STATE_FILE_PROPERTY, file.getId());
+  return file;
 }
 
 function addRsvp(request) {

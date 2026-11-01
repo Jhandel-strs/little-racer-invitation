@@ -3,7 +3,7 @@ import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
 import { db, verifyPassword, UPLOADS_DIR } from './server/db.js';
-import type { GuestWish, RSVPResponse } from './src/types/invitation';
+import type { GuestWish, InvitationData, RSVPResponse } from './src/types/invitation';
 import { parseStandardTime, toTwentyFourHourTime } from './src/utils/time';
 
 const app = express();
@@ -12,6 +12,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const isProd = process.env.NODE_ENV === 'production';
 const rsvpSheetUrl = process.env.RSVP_SCRIPT_URL?.trim();
 const rsvpSheetReadKey = process.env.RSVP_SHEET_READ_KEY?.trim();
+let persistentInvitationStateReady = false;
 
 function requireGuestStorageConfiguration(res: Response): boolean {
   if (!isProd || rsvpSheetUrl) return false;
@@ -21,7 +22,10 @@ function requireGuestStorageConfiguration(res: Response): boolean {
   return true;
 }
 
-async function requestRsvpSheet<T>(payload: Record<string, unknown>): Promise<T & { success: boolean }> {
+async function requestRsvpSheet<T>(
+  payload: Record<string, unknown>,
+  timeoutMs = 20000
+): Promise<T & { success: boolean }> {
   if (!rsvpSheetUrl) {
     throw new Error('The RSVP and guestbook storage is not connected.');
   }
@@ -30,7 +34,7 @@ async function requestRsvpSheet<T>(payload: Record<string, unknown>): Promise<T 
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const body = await response.text();
   let result: { success?: boolean; error?: string } & T;
@@ -38,8 +42,11 @@ async function requestRsvpSheet<T>(payload: Record<string, unknown>): Promise<T 
     result = JSON.parse(body);
   } catch {
     const contentType = response.headers.get('content-type')?.split(';')[0] || 'unknown content type';
+    const detail = response.status === 401
+      ? ' The /exec readiness page only checks GET. For RSVP and wishes, the active Apps Script web app must execute as you and allow anonymous Anyone access. If that access option is missing, use a personal Google account for the script or ask the Workspace administrator to allow it. Then set Render RSVP_SCRIPT_URL to that deployment’s exact /exec URL and redeploy.'
+      : '';
     throw new Error(
-      `Guestbook storage returned ${contentType} (HTTP ${response.status}) instead of JSON. Check that RSVP_SCRIPT_URL is the deployed Apps Script web app URL ending in /exec, with access set to Anyone.`
+      `Guestbook storage returned ${contentType} (HTTP ${response.status}) instead of JSON.${detail || ' Check that RSVP_SCRIPT_URL is the active Apps Script web app URL ending in /exec, with access set to Anyone.'}`
     );
   }
   if (!response.ok || !result.success) {
@@ -48,9 +55,9 @@ async function requestRsvpSheet<T>(payload: Record<string, unknown>): Promise<T 
   return result as T & { success: boolean };
 }
 
-// Body parsing with 10mb limit for potential JSON data
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Image uploads are forwarded to Drive as base64 JSON, which is larger than the original file.
+app.use(express.json({ limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 
 // Static uploads and public assets
 app.use('/uploads', express.static(UPLOADS_DIR));
@@ -232,8 +239,66 @@ app.post('/api/auth/change-password', requireAdmin, (req: Request, res: Response
 // INVITATION ROUTES (PUBLIC & ADMIN)
 // ==========================================
 
+function requirePersistentInvitationConfig(): void {
+  if (!rsvpSheetUrl || !rsvpSheetReadKey) {
+    throw new Error(
+      'Permanent invitation storage is not configured. Set RSVP_SCRIPT_URL and RSVP_SHEET_READ_KEY after deploying the updated Google Apps Script.'
+    );
+  }
+}
+
+async function ensurePersistentInvitationState(): Promise<void> {
+  if (!isProd) return;
+  requirePersistentInvitationConfig();
+  if (persistentInvitationStateReady) return;
+
+  const result = await requestRsvpSheet<{
+    state?: { draft: InvitationData; published: InvitationData | null } | null;
+  }>({
+    action: 'get-invitation',
+    key: rsvpSheetReadKey,
+  });
+
+  if (result.state) {
+    if (!result.state.draft?.id || !result.state.draft?.slug) {
+      throw new Error('Google Drive returned an invalid saved invitation.');
+    }
+    db.replaceInvitationState(result.state.draft, result.state.published || null);
+  } else {
+    const initialState = db.getInvitationState();
+    await requestRsvpSheet({
+      action: 'save-invitation',
+      key: rsvpSheetReadKey,
+      state: initialState,
+    });
+  }
+  persistentInvitationStateReady = true;
+}
+
+async function persistInvitationState(
+  state: { draft: InvitationData; published: InvitationData | null }
+): Promise<void> {
+  if (!isProd) return;
+  requirePersistentInvitationConfig();
+  await requestRsvpSheet({
+    action: 'save-invitation',
+    key: rsvpSheetReadKey,
+    state,
+  });
+}
+
 // Public invitation fetch (only returns published snapshot!)
 app.get('/api/invitation/:slug', async (req: Request, res: Response) => {
+  try {
+    await ensurePersistentInvitationState();
+  } catch (error) {
+    console.error('Failed to load permanent invitation data:', error);
+    res.status(503).json({
+      error: error instanceof Error ? error.message : 'Permanent invitation storage is unavailable.',
+    });
+    return;
+  }
+
   const { slug } = req.params;
   const published = db.getPublishedInvitation(slug);
 
@@ -269,6 +334,16 @@ app.get('/api/invitation/:slug', async (req: Request, res: Response) => {
 
 // Admin get current invitation (both draft and published snapshot)
 app.get('/api/admin/invitation', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    await ensurePersistentInvitationState();
+  } catch (error) {
+    console.error('Failed to load permanent invitation data:', error);
+    res.status(503).json({
+      error: error instanceof Error ? error.message : 'Permanent invitation storage is unavailable.',
+    });
+    return;
+  }
+
   const draft = db.getDraftInvitation();
   const published = db.getPublishedInvitation();
   const rsvps = db.getAllRSVPs();
@@ -294,50 +369,108 @@ app.get('/api/admin/invitation', requireAdmin, async (_req: Request, res: Respon
 });
 
 // Admin save draft
-app.put('/api/admin/invitation/draft', requireAdmin, (req: Request, res: Response) => {
+app.put('/api/admin/invitation/draft', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const updated = db.saveDraft(req.body);
+    await ensurePersistentInvitationState();
+    const updated = db.prepareDraft(req.body);
+    const state = { draft: updated, published: db.getPublishedInvitation() };
+    await persistInvitationState(state);
+    db.replaceInvitationState(state.draft, state.published);
     res.json({ success: true, draft: updated });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to save draft' });
+    console.error('Failed to save permanent invitation draft:', err);
+    res.status(502).json({ error: err.message || 'Failed to save invitation changes permanently.' });
   }
 });
 
 // Admin publish
-app.post('/api/admin/invitation/publish', requireAdmin, (_req: Request, res: Response) => {
+app.post('/api/admin/invitation/publish', requireAdmin, async (_req: Request, res: Response) => {
   try {
-    const published = db.publish();
+    await ensurePersistentInvitationState();
+    const now = new Date().toISOString();
+    const draft: InvitationData = {
+      ...db.getDraftInvitation(),
+      status: 'published',
+      publishedAt: now,
+      updatedAt: now,
+    };
+    const published = JSON.parse(JSON.stringify(draft)) as InvitationData;
+    const state = { draft, published };
+    await persistInvitationState(state);
+    db.replaceInvitationState(state.draft, state.published);
     res.json({ success: true, published, message: 'Invitation published successfully!' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to publish invitation' });
+    console.error('Failed to publish permanent invitation:', err);
+    res.status(502).json({ error: err.message || 'Failed to publish invitation permanently.' });
   }
 });
 
 // Admin unpublish
-app.post('/api/admin/invitation/unpublish', requireAdmin, (_req: Request, res: Response) => {
+app.post('/api/admin/invitation/unpublish', requireAdmin, async (_req: Request, res: Response) => {
   try {
-    const draft = db.unpublish();
+    await ensurePersistentInvitationState();
+    const draft: InvitationData = {
+      ...db.getDraftInvitation(),
+      status: 'draft',
+      updatedAt: new Date().toISOString(),
+    };
+    const state = { draft, published: null };
+    await persistInvitationState(state);
+    db.replaceInvitationState(state.draft, state.published);
     res.json({ success: true, draft, message: 'Invitation has been unpublished.' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to unpublish invitation' });
+    console.error('Failed to unpublish permanent invitation:', err);
+    res.status(502).json({ error: err.message || 'Failed to unpublish invitation.' });
   }
 });
 
 // Admin file upload
-app.post('/api/admin/upload', requireAdmin, upload.single('file'), (req: Request, res: Response) => {
+app.post('/api/admin/upload', requireAdmin, upload.single('file'), async (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ error: 'No file was uploaded' });
     return;
   }
 
-  const fileUrl = `/uploads/${req.file.filename}`;
-  res.json({
-    success: true,
-    url: fileUrl,
-    filename: req.file.filename,
-    size: req.file.size,
-    mimetype: req.file.mimetype,
-  });
+  try {
+    await ensurePersistentInvitationState();
+    if (isProd) {
+      const result = await requestRsvpSheet<{ url?: string; filename?: string }>(
+        {
+          action: 'upload-image',
+          key: rsvpSheetReadKey,
+          filename: req.file.originalname,
+          mimeType: req.file.mimetype,
+          data: fs.readFileSync(req.file.path).toString('base64'),
+        },
+        60000
+      );
+      if (!result.url) throw new Error('Google Drive did not return an image URL.');
+      res.json({
+        success: true,
+        url: result.url,
+        filename: result.filename || req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } else {
+      res.json({
+        success: true,
+        url: `/uploads/${req.file.filename}`,
+        filename: req.file.filename,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    }
+  } catch (error) {
+    console.error('Failed to upload permanent invitation image:', error);
+    res.status(502).json({
+      error: error instanceof Error ? error.message : 'Image could not be saved permanently.',
+    });
+  } finally {
+    fs.promises.unlink(req.file.path).catch((error) => {
+      console.error('Could not remove temporary image upload:', error);
+    });
+  }
 });
 
 // ==========================================
@@ -347,6 +480,16 @@ app.post('/api/admin/upload', requireAdmin, upload.single('file'), (req: Request
 // Post a guest birthday wish
 app.post('/api/wishes/:slug', checkRateLimit, async (req: Request, res: Response) => {
   if (requireGuestStorageConfiguration(res)) return;
+
+  try {
+    await ensurePersistentInvitationState();
+  } catch (error) {
+    console.error('Failed to load invitation before saving a birthday wish:', error);
+    res.status(503).json({
+      error: error instanceof Error ? error.message : 'Invitation storage is unavailable.',
+    });
+    return;
+  }
 
   const { slug } = req.params;
   const invitation = db.getPublishedInvitation(slug);
@@ -391,7 +534,17 @@ app.post('/api/wishes/:slug', checkRateLimit, async (req: Request, res: Response
 });
 
 // Download iCalendar .ics file
-app.get('/api/calendar/:slug/invite.ics', (req: Request, res: Response) => {
+app.get('/api/calendar/:slug/invite.ics', async (req: Request, res: Response) => {
+  try {
+    await ensurePersistentInvitationState();
+  } catch (error) {
+    console.error('Failed to load invitation for calendar download:', error);
+    res.status(503).json({
+      error: error instanceof Error ? error.message : 'Invitation storage is unavailable.',
+    });
+    return;
+  }
+
   const { slug } = req.params;
   const invitation = db.getPublishedInvitation(slug) || db.getDraftInvitation();
 
@@ -438,6 +591,16 @@ app.get('/api/calendar/:slug/invite.ics', (req: Request, res: Response) => {
 // Public guest RSVP submission
 app.post('/api/rsvp/:slug', checkRateLimit, async (req: Request, res: Response) => {
   if (requireGuestStorageConfiguration(res)) return;
+
+  try {
+    await ensurePersistentInvitationState();
+  } catch (error) {
+    console.error('Failed to load invitation before saving an RSVP:', error);
+    res.status(503).json({
+      error: error instanceof Error ? error.message : 'Invitation storage is unavailable.',
+    });
+    return;
+  }
 
   const { slug } = req.params;
   const invitation = db.getPublishedInvitation(slug);
@@ -649,6 +812,16 @@ app.get('/api/admin/rsvps', requireAdmin, async (_req: Request, res: Response) =
 });
 
 app.get('/api/admin/wishes', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    await ensurePersistentInvitationState();
+  } catch (error) {
+    console.error('Failed to load invitation before displaying birthday wishes:', error);
+    res.status(503).json({
+      error: error instanceof Error ? error.message : 'Invitation storage is unavailable.',
+    });
+    return;
+  }
+
   const invitationWishes = mergeWishes(
     db.getDraftInvitation().wishes || [],
     db.getPublishedInvitation()?.wishes || []
@@ -744,6 +917,16 @@ app.get('/api/admin/rsvps/export.csv', requireAdmin, async (_req: Request, res: 
 // ==========================================
 
 async function startServer() {
+  if (isProd && rsvpSheetUrl && rsvpSheetReadKey) {
+    try {
+      await ensurePersistentInvitationState();
+    } catch (error) {
+      console.error('Permanent invitation storage is not ready; invitation APIs will report the storage error:', error);
+    }
+  } else if (isProd) {
+    console.error('Permanent invitation storage requires RSVP_SCRIPT_URL and RSVP_SHEET_READ_KEY.');
+  }
+
   if (!isProd) {
     const { createServer } = await import('vite');
     const vite = await createServer({

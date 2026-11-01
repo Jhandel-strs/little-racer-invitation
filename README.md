@@ -73,7 +73,7 @@ Accessible at `/admin`:
   - Add, edit, or delete Pit Stop schedule timeline items.
   - Toggle visibility for any section of the invitation.
 - **Image & Media Management**:
-  - Separate upload dropzones for Baby Portrait and Backdrop image with disk storage in `/uploads`.
+  - Separate upload dropzones for Baby Portrait and Backdrop images. Local uploads use `/uploads`; the free Render setup stores uploaded invitation images in Google Drive.
   - Background overlay opacity slider (10% to 85%).
   - Add, caption, and delete photo gallery items.
 - **Venue & Google Maps Configuration**:
@@ -96,7 +96,7 @@ Accessible at `/admin`:
 
 - **Frontend**: React 19, TypeScript, Tailwind CSS, Lucide Icons, Canvas-Confetti, Web Audio API.
 - **Backend**: Node.js, Express, Multer for image file uploads.
-- **Database & Storage**: Structured persistent JSON database with atomic writes (`data/database.json`), disk file storage in `/uploads`.
+- **Database & Storage**: Local development uses an atomically written JSON database (`data/database.json`) and `/uploads`. The free Render setup stores invitation edits and uploaded photos in Google Drive, and RSVP responses and birthday wishes in Google Sheets, because Render's free filesystem is temporary.
 - **Security**: PBKDF2 password hashing with salt, session tokens, rate limiting on RSVP submissions.
 
 ---
