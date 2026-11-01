@@ -115,7 +115,8 @@ export const SectionBIntro: React.FC<Props> = ({ invitation }) => {
                       <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]">Trackside play</span>
                     </div>
                     <p className="mt-2 text-sm font-extrabold text-white">
-                      {lovesWheels ? 'Wooden cars and a little track ramp' : 'A hands-on toy inspired by a favorite interest'}
+                      {milestones?.giftRecommendationPlay ||
+                        (lovesWheels ? 'Wooden cars and a little track ramp' : 'A hands-on toy inspired by a favorite interest')}
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-slate-400">A fun pick for playtime after the victory lap.</p>
                   </div>
@@ -126,7 +127,8 @@ export const SectionBIntro: React.FC<Props> = ({ invitation }) => {
                       <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]">Storytime pit stop</span>
                     </div>
                     <p className="mt-2 text-sm font-extrabold text-white">
-                      {lovesStories ? 'Board books about favorite themes' : 'A colorful board book for storytime'}
+                      {milestones?.giftRecommendationStory ||
+                        (lovesStories ? 'Board books about favorite themes' : 'A colorful board book for storytime')}
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-slate-400">A sweet way to wind down after a busy race day.</p>
                   </div>
@@ -137,7 +139,8 @@ export const SectionBIntro: React.FC<Props> = ({ invitation }) => {
                       <span className="text-[10px] font-extrabold uppercase tracking-[0.14em]">Play it again</span>
                     </div>
                     <p className="mt-2 text-sm font-extrabold text-white">
-                      {lovesMusic ? 'Music toys for clapping and dancing' : 'A birthday keepsake made for little celebrations'}
+                      {milestones?.giftRecommendationKeepsake ||
+                        (lovesMusic ? 'Music toys for clapping and dancing' : 'A birthday keepsake made for little celebrations')}
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-slate-400">Choose a small surprise that fits the rider’s favorite things.</p>
                   </div>

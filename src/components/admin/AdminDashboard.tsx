@@ -52,6 +52,7 @@ interface Props {
 export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   const [draft, setDraft] = useState<InvitationData | null>(null);
   const [published, setPublished] = useState<InvitationData | null>(null);
+  const draftInitialized = useRef(false);
   const [stats, setStats] = useState<any>(null);
   const [rsvps, setRsvps] = useState<RSVPResponse[]>([]);
   const [rsvpMetrics, setRsvpMetrics] = useState<any>(null);
@@ -73,6 +74,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   // Uploading status indicators
   const [uploadingMainPhoto, setUploadingMainPhoto] = useState(false);
   const [uploadingBackdrop, setUploadingBackdrop] = useState(false);
+  const [uploadingTrophy, setUploadingTrophy] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
 
   // RSVP filter and search
@@ -82,7 +84,10 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
   const loadData = useCallback(async (backgroundRefresh = false) => {
     try {
       const data = await fetchAdminInvitation();
-      setDraft(data.draft);
+      if (!draftInitialized.current) {
+        setDraft(data.draft);
+        draftInitialized.current = true;
+      }
       setPublished(data.published);
       setStats(data.stats);
 
@@ -263,13 +268,14 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
 
   const handleUploadFile = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: 'mainPhoto' | 'backdrop' | 'gallery'
+    type: 'mainPhoto' | 'backdrop' | 'trophy' | 'gallery'
   ) => {
     const file = e.target.files?.[0];
     if (!file || !draft) return;
 
     if (type === 'mainPhoto') setUploadingMainPhoto(true);
     if (type === 'backdrop') setUploadingBackdrop(true);
+    if (type === 'trophy') setUploadingTrophy(true);
     if (type === 'gallery') setUploadingGallery(true);
 
     try {
@@ -279,6 +285,8 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
           setDraft({ ...draft, mainPhotoUrl: res.url });
         } else if (type === 'backdrop') {
           setDraft({ ...draft, backdropUrl: res.url });
+        } else if (type === 'trophy') {
+          setDraft({ ...draft, trophyIllustrationUrl: res.url });
         } else if (type === 'gallery') {
           const newItem: GalleryItem = {
             id: `g-${Date.now()}`,
@@ -297,6 +305,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
     } finally {
       if (type === 'mainPhoto') setUploadingMainPhoto(false);
       if (type === 'backdrop') setUploadingBackdrop(false);
+      if (type === 'trophy') setUploadingTrophy(false);
       if (type === 'gallery') setUploadingGallery(false);
     }
   };
@@ -1219,6 +1228,60 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
 
                     <div>
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        Trackside Play Gift Recommendation
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.milestones?.giftRecommendationPlay || ''}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            milestones: { ...draft.milestones, giftRecommendationPlay: e.target.value },
+                          })
+                        }
+                        placeholder="Wooden cars and a little track ramp"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white outline-none focus:border-rose-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        Storytime Gift Recommendation
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.milestones?.giftRecommendationStory || ''}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            milestones: { ...draft.milestones, giftRecommendationStory: e.target.value },
+                          })
+                        }
+                        placeholder="A colorful board book for storytime"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white outline-none focus:border-rose-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                        Keepsake Gift Recommendation
+                      </label>
+                      <input
+                        type="text"
+                        value={draft.milestones?.giftRecommendationKeepsake || ''}
+                        onChange={(e) =>
+                          setDraft({
+                            ...draft,
+                            milestones: { ...draft.milestones, giftRecommendationKeepsake: e.target.value },
+                          })
+                        }
+                        placeholder="A birthday keepsake made for little celebrations"
+                        className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white outline-none focus:border-rose-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
                         Racer Height
                       </label>
                       <input
@@ -1444,6 +1507,40 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic }) => {
                     </label>
                     <div className="text-[10px] text-slate-500 text-center mt-2">
                       High-resolution landscape 16:9 recommended
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-slate-950 border border-slate-800 flex flex-col justify-between">
+                  <div>
+                    <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+                      CLOSING SECTION TROPHY IMAGE
+                    </div>
+                    <div className="w-full h-32 sm:h-36 rounded-2xl overflow-hidden mb-4 border-2 border-slate-700 bg-slate-900">
+                      <img
+                        src={draft.trophyIllustrationUrl}
+                        alt="Closing trophy preview"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block w-full py-2.5 px-4 rounded-xl text-xs font-bold uppercase tracking-wider bg-amber-600 hover:bg-amber-500 text-white text-center transition-colors cursor-pointer shadow-md">
+                      <span>{uploadingTrophy ? 'Uploading...' : 'Upload Closing Image'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        disabled={uploadingTrophy}
+                        onChange={(e) => handleUploadFile(e, 'trophy')}
+                      />
+                    </label>
+                    <div className="text-[10px] text-slate-500 text-center mt-2">
+                      Shown above the closing message at the bottom of the invitation
                     </div>
                   </div>
                 </div>

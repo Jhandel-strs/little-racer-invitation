@@ -135,6 +135,9 @@ export interface InvitationData {
     teethCount: number;
     lovesTo: string;
     giftIdeas?: string;
+    giftRecommendationPlay?: string;
+    giftRecommendationStory?: string;
+    giftRecommendationKeepsake?: string;
     superpower: string;
     height?: string;
     weight?: string;
