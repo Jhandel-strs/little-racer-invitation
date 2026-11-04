@@ -438,7 +438,11 @@ class Database {
 
     // Local development keeps a legacy convenience password; production must configure a secret.
     const bootstrapPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim() ||
-      (process.env.NODE_ENV === 'production' ? '' : '1111');
+      (process.env.VERCEL === '1'
+        ? crypto.randomBytes(32).toString('hex')
+        : process.env.NODE_ENV === 'production'
+          ? ''
+          : '1111');
     if (bootstrapPassword.length < 4) {
       throw new Error('Set ADMIN_BOOTSTRAP_PASSWORD before creating the administrator account.');
     }

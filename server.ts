@@ -240,7 +240,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     const credentials = getVercelAdminCredentials();
     if (!credentials) {
       res.status(503).json({
-        error: 'Admin sign-in is not configured. Set ADMIN_BOOTSTRAP_PASSWORD and ADMIN_SESSION_SECRET in Vercel.',
+        error: 'Admin sign-in is not configured. In Vercel Project Settings → Environment Variables, set ADMIN_BOOTSTRAP_PASSWORD (12+ characters) and ADMIN_SESSION_SECRET (32+ characters), then redeploy.',
       });
       return;
     }
