@@ -5,7 +5,7 @@ import multer from 'multer';
 import fs from 'fs';
 import { db, verifyPassword, UPLOADS_DIR } from './server/db.js';
 import type { GuestWish, InvitationData, RSVPResponse } from './src/types/invitation';
-import { parseStandardTime, toTwentyFourHourTime } from './src/utils/time';
+import { parseStandardTime, toTwentyFourHourTime } from './src/utils/time.js';
 
 const app = express();
 app.set('trust proxy', 1);

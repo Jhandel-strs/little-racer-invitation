@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import type { InvitationData, RSVPResponse } from '../src/types/invitation';
-import { formatStandardTime } from '../src/utils/time';
+import { formatStandardTime } from '../src/utils/time.js';
 
 export interface AdminUser {
   id: string;
