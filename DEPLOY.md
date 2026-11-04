@@ -17,7 +17,7 @@ Keep the spreadsheet private. The invitation settings file in Drive is private; 
 
 ## Deploy the invitation on Vercel for free
 
-1. Import this GitHub repository into Vercel and keep the detected Vite framework and the repository root as the project root. The included `vercel.json` builds the site and routes API calls to the Express function.
+1. Import this GitHub repository into Vercel and keep the detected Vite framework and the repository root as the project root. The included `vercel.json` builds the site and routes all `/api/...` calls to the Express function before applying the SPA fallback.
 2. In **Project Settings → Environment Variables**, set `ADMIN_BOOTSTRAP_PASSWORD` to a unique password of at least 12 characters. The admin username is `admin`.
 3. Add `ADMIN_SESSION_SECRET` with a random value of at least 32 characters. Generate one locally with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
 4. Set `RSVP_SCRIPT_URL` to the same Apps Script `/exec` URL used on Render.

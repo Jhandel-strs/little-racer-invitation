@@ -17,6 +17,18 @@ const rsvpSheetReadKey = process.env.RSVP_SHEET_READ_KEY?.trim();
 const maxUploadBytes = (isVercel ? 4 : 12) * 1024 * 1024;
 let persistentInvitationStateReady = false;
 
+if (isVercel) {
+  app.use((req, _res, next) => {
+    const rewrittenUrl = new URL(req.originalUrl, 'http://localhost');
+    const originalPath = rewrittenUrl.searchParams.get('__vercel_path');
+    if (originalPath?.startsWith('/')) {
+      rewrittenUrl.searchParams.delete('__vercel_path');
+      req.url = `${originalPath}${rewrittenUrl.search}`;
+    }
+    next();
+  });
+}
+
 function requireGuestStorageConfiguration(res: Response): boolean {
   if (!isProd || rsvpSheetUrl) return false;
   res.status(503).json({
