@@ -63,7 +63,8 @@ A production-grade, customizable digital invitation website for a baby boy's fir
 Accessible at `/admin`:
 - **Default Master Admin Credentials**:
   - **Username**: `admin`
-  - **Password**: `1111`
+  - **Local development password**: `1111` (production deployments must set `ADMIN_BOOTSTRAP_PASSWORD`)
+  - **Vercel**: set `ADMIN_BOOTSTRAP_PASSWORD` and `ADMIN_SESSION_SECRET` in project environment variables; rotate the password there and redeploy.
 - **Overview Module**:
   - Real-time RSVP metrics (Total responses, Confirmed attendees, Declined, Total guest count).
   - One-click copy for the stable public URL (`/invite/little-racer-turns-one`).
@@ -73,7 +74,7 @@ Accessible at `/admin`:
   - Add, edit, or delete Pit Stop schedule timeline items.
   - Toggle visibility for any section of the invitation.
 - **Image & Media Management**:
-  - Separate upload dropzones for Baby Portrait and Backdrop images. Local uploads use `/uploads`; the free Render setup stores uploaded invitation images in Google Drive.
+  - Separate upload dropzones for Baby Portrait and Backdrop images. Local uploads use `/uploads`; Render and Vercel deployments store uploaded invitation images in Google Drive.
   - Background overlay opacity slider (10% to 85%).
   - Add, caption, and delete photo gallery items.
 - **Venue & Google Maps Configuration**:
@@ -96,8 +97,8 @@ Accessible at `/admin`:
 
 - **Frontend**: React 19, TypeScript, Tailwind CSS, Lucide Icons, Canvas-Confetti, Web Audio API.
 - **Backend**: Node.js, Express, Multer for image file uploads.
-- **Database & Storage**: Local development uses an atomically written JSON database (`data/database.json`) and `/uploads`. The free Render setup stores invitation edits and uploaded photos in Google Drive, and RSVP responses and birthday wishes in Google Sheets, because Render's free filesystem is temporary.
-- **Security**: PBKDF2 password hashing with salt, session tokens, rate limiting on RSVP submissions.
+- **Database & Storage**: Local development uses an atomically written JSON database (`data/database.json`) and `/uploads`. Render and Vercel deployments store invitation edits and uploaded images in Google Drive, and RSVP responses and birthday wishes in Google Sheets, so those records survive redeployments and temporary filesystems.
+- **Security**: PBKDF2 password hashing on local/Render deployments, signed stateless admin sessions on Vercel, and rate limiting on guest submissions.
 
 ---
 
@@ -112,3 +113,7 @@ npm run dev
 
 # The applet will be accessible at http://localhost:3000
 ```
+
+### 🚀 Hosting
+
+See [DEPLOY.md](./DEPLOY.md) for Google Sheets/Drive setup and deployment steps for Vercel or Render.

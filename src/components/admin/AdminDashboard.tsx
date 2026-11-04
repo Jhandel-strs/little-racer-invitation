@@ -47,6 +47,11 @@ import { AdminLivePreviewModal } from './AdminLivePreviewModal';
 import { StandardTimeInput } from './StandardTimeInput';
 import { formatStandardTime } from '../../utils/time';
 
+const MAX_IMAGE_UPLOAD_MB = Math.min(
+  12,
+  Math.max(1, Number(import.meta.env.VITE_MAX_IMAGE_UPLOAD_MB) || 12)
+);
+
 interface Props {
   onLogout: () => void;
   onViewPublic: () => void;
@@ -285,6 +290,10 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSess
     const file = e.target.files?.[0];
     e.currentTarget.value = '';
     if (!file || !draft) return;
+    if (file.size > MAX_IMAGE_UPLOAD_MB * 1024 * 1024) {
+      setErrorMsg(`Please choose an image smaller than ${MAX_IMAGE_UPLOAD_MB}MB.`);
+      return;
+    }
 
     if (type === 'mainPhoto') setUploadingMainPhoto(true);
     if (type === 'backdrop') setUploadingBackdrop(true);
@@ -1585,7 +1594,7 @@ export const AdminDashboard: React.FC<Props> = ({ onLogout, onViewPublic, onSess
                       />
                     </label>
                     <div className="text-[10px] text-slate-500 text-center mt-2">
-                      Supports JPEG, PNG, WEBP (Max 12MB)
+                      Supports JPEG, PNG, WEBP (Max {MAX_IMAGE_UPLOAD_MB}MB)
                     </div>
                   </div>
                 </div>

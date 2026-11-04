@@ -18,7 +18,7 @@ async function readApiJson<T>(res: Response): Promise<T> {
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json') || res.status === 404) {
       throw new Error(
-        'The site loaded, but its API is unavailable. In Render, deploy this project as a Web Service using render.yaml. A Static Site cannot run the Express API.'
+        'The site loaded, but its API is unavailable. Deploy the Express API with the site using the Vercel configuration or as a Render Web Service.'
       );
     }
 

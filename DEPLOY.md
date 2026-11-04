@@ -1,6 +1,6 @@
-# Free invitation, RSVP, and birthday wishes deployment
+# Invitation, RSVP, and birthday wishes deployment
 
-This setup uses a free Render Web Service and your Google account to permanently store invitation edits and uploaded photos in Google Drive, plus RSVP responses and birthday wishes in Google Sheets. It does not need a paid Render disk.
+The app stores invitation edits and uploaded photos in Google Drive, plus RSVP responses and birthday wishes in Google Sheets. This keeps those records when changing hosting providers.
 
 ## Set up the RSVP sheet
 
@@ -15,7 +15,20 @@ This setup uses a free Render Web Service and your Google account to permanently
 
 Keep the spreadsheet private. The invitation settings file in Drive is private; uploaded invitation photos are shared by link so they can appear on the public invitation. Guests can submit RSVPs and wishes; the script only returns private invitation settings and response lists when the `RSVP_READ_KEY` is supplied by the signed-in admin server.
 
-## Deploy the invitation on Render for free
+## Deploy the invitation on Vercel for free
+
+1. Import this GitHub repository into Vercel and keep the detected Vite framework and the repository root as the project root. The included `vercel.json` builds the site and routes API calls to the Express function.
+2. In **Project Settings → Environment Variables**, set `ADMIN_BOOTSTRAP_PASSWORD` to a unique password of at least 12 characters. The admin username is `admin`.
+3. Add `ADMIN_SESSION_SECRET` with a random value of at least 32 characters. Generate one locally with `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"`.
+4. Set `RSVP_SCRIPT_URL` to the same Apps Script `/exec` URL used on Render.
+5. Set `RSVP_SHEET_READ_KEY` to the same private value used on Render and as the Apps Script `RSVP_READ_KEY` property. Do not put these secrets in source code or expose them as `VITE_` variables.
+6. Set the non-secret build variable `VITE_MAX_IMAGE_UPLOAD_MB` to `4`. Vercel limits function request bodies to 4.5 MB, so the app caps uploaded files below that limit.
+7. Apply the environment variables to **Production** (and Preview if desired), then deploy. Vercel will assign a free `*.vercel.app` address. The existing `*.onrender.com` address belongs to Render and cannot be transferred; using a custom address requires owning a domain.
+8. Test the public invitation, admin sign-in, a draft save, image upload, RSVP, and birthday wish. Confirm the new RSVP and wish appear in the existing private Google Sheet before sharing the Vercel link.
+
+On Vercel, the admin password is configured in the `ADMIN_BOOTSTRAP_PASSWORD` environment variable rather than changed in the dashboard. To rotate it, update that variable and redeploy; existing admin sessions are invalidated. `ADMIN_SESSION_SECRET` signs short-lived admin sessions and must remain private.
+
+## Deploy the invitation on Render
 
 1. Connect the private GitHub repository to Render and create a **Blueprint** from `render.yaml`.
 2. Set `ADMIN_BOOTSTRAP_PASSWORD` to a unique password of at least 12 characters. The username is `admin`; do not use `admin` or `1111` as the password because they are easy to guess and may be flagged as compromised.
@@ -25,7 +38,7 @@ Keep the spreadsheet private. The invitation settings file in Drive is private; 
 
 ## If the `/exec` page is ready but RSVP or wishes return HTTP 401
 
-In Apps Script, open **Deploy → Manage deployments**, edit the active web app deployment, set **Execute as** to **Me** and **Who has access** to anonymous **Anyone** access, then deploy the new version. Copy that deployment's `/exec` URL into the Render Web Service's `RSVP_SCRIPT_URL` environment variable and redeploy the Web Service. A new Apps Script deployment can have a different URL, so the Render value must match the active deployment exactly. `Anyone with a Google account` still requires a Google sign-in and cannot be called anonymously by Render. If anonymous access is not offered, the Workspace administrator is restricting it; deploy the script from a personal Google account or ask the administrator to allow anonymous Apps Script web apps.
+In Apps Script, open **Deploy → Manage deployments**, edit the active web app deployment, set **Execute as** to **Me** and **Who has access** to anonymous **Anyone** access, then deploy the new version. Copy that deployment's `/exec` URL into your hosting provider's `RSVP_SCRIPT_URL` environment variable and redeploy the app. A new Apps Script deployment can have a different URL, so the configured value must match the active deployment exactly. `Anyone with a Google account` still requires a Google sign-in and cannot be called anonymously by the app. If anonymous access is not offered, the Workspace administrator is restricting it; deploy the script from a personal Google account or ask the administrator to allow anonymous Apps Script web apps.
 
 To recover admin access, change `ADMIN_BOOTSTRAP_PASSWORD` in the Render service environment to a new private value and redeploy. The service rotates the admin password to that value and clears existing admin sessions. The username remains `admin`.
 

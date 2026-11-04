@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import crypto from 'node:crypto';
 import path from 'path';
 import multer from 'multer';
 import fs from 'fs';
@@ -10,8 +11,10 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const isProd = process.env.NODE_ENV === 'production';
+const isVercel = process.env.VERCEL === '1';
 const rsvpSheetUrl = process.env.RSVP_SCRIPT_URL?.trim();
 const rsvpSheetReadKey = process.env.RSVP_SHEET_READ_KEY?.trim();
+const maxUploadBytes = (isVercel ? 4 : 12) * 1024 * 1024;
 let persistentInvitationStateReady = false;
 
 function requireGuestStorageConfiguration(res: Response): boolean {
@@ -80,7 +83,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 12 * 1024 * 1024 }, // 12MB limit
+  limits: { fileSize: maxUploadBytes },
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
     if (allowed.includes(file.mimetype)) {
@@ -96,11 +99,67 @@ function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-  if (!token || !db.validateSession(token)) {
+  if (!token || !isAdminSessionValid(token)) {
     res.status(401).json({ error: 'Unauthorized: Invalid or expired admin session' });
     return;
   }
   next();
+}
+
+function getVercelAdminCredentials(): { password: string; sessionSecret: string } | null {
+  const password = process.env.ADMIN_BOOTSTRAP_PASSWORD?.trim();
+  const sessionSecret = process.env.ADMIN_SESSION_SECRET?.trim();
+  if (!password || password.length < 12 || !sessionSecret || sessionSecret.length < 32) {
+    return null;
+  }
+  return { password, sessionSecret };
+}
+
+function getVercelSessionSigningKey(sessionSecret: string, password: string): Buffer {
+  return crypto.createHmac('sha256', sessionSecret).update(password).digest();
+}
+
+function createVercelAdminSession(sessionSecret: string, password: string): string {
+  const payload = Buffer.from(JSON.stringify({
+    userId: 'admin-01',
+    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+  })).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', getVercelSessionSigningKey(sessionSecret, password))
+    .update(payload)
+    .digest('base64url');
+  return `${payload}.${signature}`;
+}
+
+function isVercelAdminSessionValid(token: string): boolean {
+  const credentials = getVercelAdminCredentials();
+  if (!credentials) return false;
+
+  const [payload, signature, extra] = token.split('.');
+  if (!payload || !signature || extra !== undefined) return false;
+
+  try {
+    const expected = crypto
+      .createHmac('sha256', getVercelSessionSigningKey(credentials.sessionSecret, credentials.password))
+      .update(payload)
+      .digest();
+    const supplied = Buffer.from(signature, 'base64url');
+    if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
+      return false;
+    }
+
+    const session = JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8')) as {
+      userId?: string;
+      expiresAt?: number;
+    };
+    return session.userId === 'admin-01' && typeof session.expiresAt === 'number' && session.expiresAt > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function isAdminSessionValid(token: string): boolean {
+  return isVercel ? isVercelAdminSessionValid(token) : db.validateSession(token);
 }
 
 // In-memory rate limiting map for guest RSVP submissions (prevents flooding)
@@ -165,6 +224,33 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     return;
   }
 
+  if (isVercel) {
+    const credentials = getVercelAdminCredentials();
+    if (!credentials) {
+      res.status(503).json({
+        error: 'Admin sign-in is not configured. Set ADMIN_BOOTSTRAP_PASSWORD and ADMIN_SESSION_SECRET in Vercel.',
+      });
+      return;
+    }
+
+    const passwordBuffer = Buffer.from(String(password));
+    const configuredPasswordBuffer = Buffer.from(credentials.password);
+    const validPassword = passwordBuffer.length === configuredPasswordBuffer.length &&
+      crypto.timingSafeEqual(passwordBuffer, configuredPasswordBuffer);
+    if (username.toLowerCase().trim() !== 'admin' || !validPassword) {
+      recordLoginFailure(req);
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
+    }
+
+    loginFailures.delete(req.ip || req.socket.remoteAddress || 'unknown');
+    res.json({
+      token: createVercelAdminSession(credentials.sessionSecret, credentials.password),
+      user: { id: 'admin-01', username: 'admin' },
+    });
+    return;
+  }
+
   const admin = db.getAdmin();
   if (username.toLowerCase().trim() !== admin.username.toLowerCase().trim()) {
     recordLoginFailure(req);
@@ -194,7 +280,7 @@ app.get('/api/auth/me', (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-  if (!token || !db.validateSession(token)) {
+  if (!token || !isAdminSessionValid(token)) {
     res.status(401).json({ authenticated: false });
     return;
   }
@@ -212,7 +298,7 @@ app.get('/api/auth/me', (req: Request, res: Response) => {
 app.post('/api/auth/logout', (req: Request, res: Response) => {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (token) {
+  if (token && !isVercel) {
     db.deleteSession(token);
   }
   res.json({ success: true });
@@ -969,7 +1055,11 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
-  console.error('Fatal server startup error:', err);
-  process.exit(1);
-});
+export { app };
+
+if (!isVercel) {
+  startServer().catch((err) => {
+    console.error('Fatal server startup error:', err);
+    process.exit(1);
+  });
+}

@@ -28,9 +28,14 @@ export interface DatabaseSchema {
 
 const PROJECT_DATA_DIR = path.resolve(process.cwd(), 'data');
 const PROJECT_UPLOADS_DIR = path.resolve(process.cwd(), 'uploads');
-const DATA_DIR = path.resolve(process.env.DATA_DIR || PROJECT_DATA_DIR);
+const VERCEL_DATA_DIR = '/tmp/little-racer-data';
+const DATA_DIR = path.resolve(process.env.DATA_DIR || (process.env.VERCEL === '1'
+  ? path.join(VERCEL_DATA_DIR, 'data')
+  : PROJECT_DATA_DIR));
 const DB_FILE = path.join(DATA_DIR, 'database.json');
-export const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || PROJECT_UPLOADS_DIR);
+export const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || (process.env.VERCEL === '1'
+  ? path.join(VERCEL_DATA_DIR, 'uploads')
+  : PROJECT_UPLOADS_DIR));
 const RENDER_DATA_DIR = process.env.RENDER_DATA_DIR
   ? path.resolve(process.env.RENDER_DATA_DIR)
   : null;
