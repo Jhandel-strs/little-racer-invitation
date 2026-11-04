@@ -16,6 +16,7 @@ import { ScrollTransitionManager } from './ScrollTransitionManager';
 import { DigitalPitPassModal } from './DigitalPitPassModal';
 import { EnvelopeGateReveal } from './EnvelopeGateReveal';
 import { FloatingFestiveElements } from './FloatingFestiveElements';
+import { RacetrackMusic, type RacetrackMusicHandle } from './RacetrackMusic';
 
 interface Props {
   invitation: InvitationData;
@@ -28,6 +29,7 @@ export const PublicInvitationView: React.FC<Props> = ({ invitation, onOpenAdmin,
   const [showPassModal, setShowPassModal] = useState(false);
   const [isEnvelopeOpen, setIsEnvelopeOpen] = useState(false);
   const introSectionRef = useRef<HTMLDivElement>(null);
+  const musicRef = useRef<RacetrackMusicHandle>(null);
 
   // Sync prop changes
   useEffect(() => {
@@ -50,8 +52,10 @@ export const PublicInvitationView: React.FC<Props> = ({ invitation, onOpenAdmin,
         <EnvelopeGateReveal
           invitation={currentInvitation}
           onOpened={() => setIsEnvelopeOpen(true)}
+          onStartMusic={() => musicRef.current?.start()}
         />
       )}
+      <RacetrackMusic ref={musicRef} />
 
       {/* Floating Festive Elements (Balloons, Twinkling Stars, Drifting Cars) */}
       <FloatingFestiveElements />

@@ -6,6 +6,7 @@ import { formatStandardTime } from '../../utils/time';
 interface Props {
   invitation: InvitationData;
   onOpened: () => void;
+  onStartMusic: () => void;
 }
 
 const formatEventDate = (value: string) => {
@@ -16,11 +17,12 @@ const formatEventDate = (value: string) => {
     : new Intl.DateTimeFormat('en', { month: 'long', day: 'numeric', year: 'numeric' }).format(date);
 };
 
-export const EnvelopeGateReveal: React.FC<Props> = ({ invitation, onOpened }) => {
+export const EnvelopeGateReveal: React.FC<Props> = ({ invitation, onOpened, onStartMusic }) => {
   const [isOpening, setIsOpening] = useState(false);
 
   const handleOpen = () => {
     if (isOpening) return;
+    onStartMusic();
     setIsOpening(true);
     window.setTimeout(onOpened, 360);
   };
